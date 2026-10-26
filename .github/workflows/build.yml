@@ -31,7 +31,10 @@ jobs:
       - name: Verify architectures
         run: |
           lipo -info build/EdgeShelf.app/Contents/MacOS/EdgeShelf
-          lipo -verify_arch arm64 x86_64 build/EdgeShelf.app/Contents/MacOS/EdgeShelf
+          ARCHS="$(lipo -archs build/EdgeShelf.app/Contents/MacOS/EdgeShelf)"
+          echo "Built architectures: ${ARCHS}"
+          echo "${ARCHS}" | grep -qw arm64
+          echo "${ARCHS}" | grep -qw x86_64
 
       - name: Package zip and dmg
         run: |
