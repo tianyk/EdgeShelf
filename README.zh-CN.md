@@ -2,6 +2,8 @@
 
 [English](README.md) | **中文**
 
+[![Build](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml/badge.svg)](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml)
+
 ![EdgeShelf](docs/screenshot-zh.png)
 
 EdgeShelf 是一个面向 macOS 26/27 的轻量拖拽暂存搁板，也是
@@ -57,11 +59,25 @@ EdgeShelf 是一个面向 macOS 26/27 的轻量拖拽暂存搁板，也是
 ## 构建
 
 ```bash
-./build.sh
+./build.sh              # 当前架构
+UNIVERSAL=1 ./build.sh  # arm64 + x86_64 通用包
 open build/EdgeShelf.app
 ```
 
 需要 Xcode 26（或对应的命令行工具）。App 使用本地 ad-hoc 签名；换到另一台 Mac 首次打开时右键 → 打开。
+
+## GitHub Actions
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) 会在每次推送到 `main`、每个 Pull Request 时构建通用包，运行自测，并上传 `EdgeShelf-<sha>.zip`、`.dmg` 和 SHA-256 校验文件作为 workflow artifact。
+
+推送 tag 会自动创建 GitHub Release，并附上同样的文件：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+构建使用 ad-hoc 签名，**没有公证**。如果要分发给其他 Mac，建议配置 Developer ID 证书和公证步骤（例如使用 `MACOS_CERTIFICATE`、`MACOS_CERTIFICATE_PASSWORD`、`APPLE_ID`、`APPLE_TEAM_ID`、`APPLE_APP_PASSWORD` secrets），然后在打包前对 `.app` 执行 `codesign` 和 `notarytool`。
 
 ## 使用
 

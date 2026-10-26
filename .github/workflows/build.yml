@@ -1,0 +1,66 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          xcrun --show-sdk-version
+
+      - name: Build universal app
+        run: UNIVERSAL=1 ./build.sh
+
+      - name: Self-test
+        run: build/EdgeShelf.app/Contents/MacOS/EdgeShelf --self-test
+
+      - name: Verify architectures
+        run: |
+          lipo -info build/EdgeShelf.app/Contents/MacOS/EdgeShelf
+          lipo -verify_arch arm64 x86_64 build/EdgeShelf.app/Contents/MacOS/EdgeShelf
+
+      - name: Package zip and dmg
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME//\//-}"
+          mkdir -p dist
+          ditto -c -k --keepParent build/EdgeShelf.app "dist/EdgeShelf-${VERSION}.zip"
+          hdiutil create \
+            -volname "EdgeShelf" \
+            -srcfolder build/EdgeShelf.app \
+            -ov -format UDZO \
+            "dist/EdgeShelf-${VERSION}.dmg"
+          shasum -a 256 dist/* > "dist/SHA256SUMS-${VERSION}.txt"
+          ls -lh dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EdgeShelf-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/*.dmg
+            dist/SHA256SUMS-*.txt
+          generate_release_notes: true

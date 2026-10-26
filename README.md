@@ -2,6 +2,8 @@
 
 **English** | [中文](README.zh-CN.md)
 
+[![Build](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml/badge.svg)](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml)
+
 ![EdgeShelf](docs/screenshot-en.png)
 
 EdgeShelf is a small drag-and-drop shelf for macOS 26/27 — a clean-room
@@ -69,12 +71,33 @@ Arabic preview: [`docs/screenshot-ar.png`](docs/screenshot-ar.png).
 ## Build
 
 ```bash
-./build.sh
+./build.sh              # current architecture
+UNIVERSAL=1 ./build.sh  # arm64 + x86_64 universal
 open build/EdgeShelf.app
 ```
 
 Requires Xcode 26 (or the matching command line tools). The app is ad-hoc
 signed. On another Mac, right-click → Open the first time.
+
+## GitHub Actions
+
+[`.github/workflows/build.yml`](.github/workflows/build.yml) builds a
+universal app on every push to `main` and every pull request, runs the
+self-test, and uploads `EdgeShelf-<sha>.zip`, `.dmg`, and SHA-256 checksums as
+a workflow artifact.
+
+Push a tag to create a GitHub Release with the same assets:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The build is ad-hoc signed and **not notarized**. For distribution outside your
+own Macs, add a Developer ID certificate and a notarization step (for example
+with `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`,
+`APPLE_TEAM_ID`, and `APPLE_APP_PASSWORD` secrets), then `codesign` and
+`notarytool` the `.app` before packaging.
 
 ## Usage
 
