@@ -201,7 +201,7 @@ enum ThumbnailLoader {
 
 // MARK: - Item card
 
-final class ItemView: NSView, NSDraggingSource {
+final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     private(set) var item: ShelfItem
     private weak var manager: ShelfManager?
     private let key: ShelfKey
@@ -402,13 +402,69 @@ final class ItemView: NSView, NSDraggingSource {
     }
 
     func openItem() {
-        guard let url = manager?.userFacingURL(for: item) else {
-            if item.kind == .url, let string = item.urlString, let url = URL(string: string) {
+        switch item.kind {
+        case .text:
+            openTextItem()
+        case .url:
+            if let string = item.urlString, let url = URL(string: string) {
                 NSWorkspace.shared.open(url)
             }
-            return
+        case .file, .folder, .image:
+            if let url = manager?.userFacingURL(for: item) {
+                NSWorkspace.shared.open(url)
+            }
         }
-        NSWorkspace.shared.open(url)
+    }
+
+    private func openTextItem() {
+        guard let text = item.text, !text.isEmpty else { return }
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("EdgeShelf", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let base = item.displayName.isEmpty ? "Text" : item.displayName
+        let safe = base.replacingOccurrences(of: "/", with: "-").prefix(60)
+        let url = directory.appendingPathComponent("\(safe)-\(item.id.uuidString.prefix(8)).txt")
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            NSWorkspace.shared.open(url)
+        } catch {
+            NSSound.beep()
+        }
+    }
+
+    private var canOpen: Bool {
+        switch item.kind {
+        case .text:
+            return !(item.text ?? "").isEmpty
+        case .url:
+            return URL(string: item.urlString ?? "") != nil
+        case .file, .folder, .image:
+            return manager?.userFacingURL(for: item) != nil
+        }
+    }
+
+    private var canCopy: Bool {
+        switch item.kind {
+        case .text:
+            return !(item.text ?? "").isEmpty
+        case .url:
+            return !(item.urlString ?? "").isEmpty
+        case .file, .folder, .image:
+            return manager?.userFacingURL(for: item) != nil
+        }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(menuOpen):
+            return canOpen
+        case #selector(menuReveal):
+            return manager?.userFacingURL(for: item) != nil
+        case #selector(menuCopy):
+            return canCopy
+        default:
+            return true
+        }
     }
 
     private func copyItem() {

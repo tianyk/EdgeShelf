@@ -3,6 +3,16 @@ import AppKit
 final class ShelfWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+
+    override func sendEvent(_ event: NSEvent) {
+        // A context menu on an inactive floating window should open on the
+        // first right-click, not require a preliminary click to focus.
+        if event.type == .rightMouseDown, !isKeyWindow {
+            makeKey()
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        super.sendEvent(event)
+    }
 }
 
 /// A borderless, non-activating panel that lives at one screen edge.

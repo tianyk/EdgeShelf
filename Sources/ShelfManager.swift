@@ -566,7 +566,7 @@ final class ShelfManager {
 
     /// Used by `--demo` to exercise the shelf UI without a mouse drag.
     func addDemoItems() {
-        guard let screen = NSScreen.screens.first else { return }
+        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
         let key = ShelfKey(screenID: screen.edgeShelfDisplayID, edge: .left)
         var state = ensureState(for: key)
 
