@@ -228,9 +228,17 @@ final class ShelfManager {
     private func scheduleAutoHide(_ key: ShelfKey) {
         guard !isDragging, !items(for: key).isEmpty else { return }
         cancelAutoHide(key)
-        let timer = Timer(timeInterval: 3.0, repeats: false) { [weak self] _ in
+        // No grace period: collapse on the next run-loop turn unless the
+        // pointer is actually inside the shelf window.
+        let timer = Timer(timeInterval: 0, repeats: false) { [weak self] _ in
             guard let self else { return }
             guard !self.isDragging, !self.hoveredKeys.contains(key) else { return }
+            if let frame = self.windows[key]?.window?.frame,
+               frame.contains(NSEvent.mouseLocation) {
+                self.hoveredKeys.insert(key)
+                self.autoHideTimers[key] = nil
+                return
+            }
             if self.items(for: key).isEmpty {
                 self.windows[key]?.setPresentation(.hidden)
             } else {
@@ -598,8 +606,14 @@ final class ShelfManager {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.windows[key]?.refresh()
             self?.windows[key]?.setPresentation(.expanded)
-            self?.scheduleAutoHide(key)
             self?.updateHeights(animated: true)
         }
+    }
+
+    /// Used by `--snapshot-collapsed`; demo mode intentionally keeps the shelf
+    /// expanded so the other snapshot modes can render it.
+    func collapseForSnapshot() {
+        guard let key = windows.keys.first(where: { $0.edge == .left }) else { return }
+        windows[key]?.setPresentation(.collapsed, animated: false)
     }
 }

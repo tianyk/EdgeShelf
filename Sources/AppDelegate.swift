@@ -48,7 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         if CommandLine.arguments.contains("--snapshot-collapsed") {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.2) { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.manager.collapseForSnapshot()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 self?.writeSnapshot()
             }
         }

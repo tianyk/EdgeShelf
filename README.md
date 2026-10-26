@@ -27,8 +27,8 @@ diagnosis.
   quiet diagonal stripes, and a soft outer shadow.
 - 64 pt cards with type-coloured thumbnails, real image previews, file name,
   type, and size; hover reveals the remove button.
-- Collapses to an 8 × 96 pt gradient tab at the edge after 3 seconds; hover the
-  edge to expand it again.
+- Collapses to an 8 × 96 pt gradient tab at the edge as soon as the pointer
+  leaves; hover the edge to expand it again.
 - Right-click menu: Open, Show in Finder, Copy, Remove — with keyboard
   shortcuts.
 - Six UN languages plus “Follow System”.
@@ -103,7 +103,7 @@ with `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`,
 
 - Drag something to the left or right screen edge. A shelf appears.
 - Drop it; the item is copied into EdgeShelf’s storage.
-- Move away for 3 seconds and the shelf collapses to the edge tab.
+- Move away and the shelf collapses to the edge tab immediately.
 - Hover the edge tab to expand the shelf again.
 - Right-click an item for Open / Show in Finder / Copy / Remove.
 - Drag an item out to Finder, Mail, Slack, etc. If the original file still
@@ -130,7 +130,7 @@ build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang en --snapshot --snapshot-man
 ## Manual checklist
 
 1. Drag a file from Finder to the left edge. A shelf appears; drop the file.
-2. Move away. After ~3 seconds the shelf collapses to a tab.
+2. Move away. The shelf collapses to a tab immediately.
 3. Move to the edge tab. The shelf expands.
 4. Drag the file from the shelf back to its original folder. No “replace?”
    prompt.
