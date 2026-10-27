@@ -686,7 +686,8 @@ final class ShelfView: NSView {
         tabView.isHidden = true
         addSubview(tabView)
 
-        registerForDraggedTypes([.fileURL, .URL, .string, .png, .tiff, .rtf, .html]
+        registerForDraggedTypes([.fileURL, .URL, .string, .png, .tiff, .rtf, .rtfd, .html]
+            + IngestPayload.extraDraggedTypes
             + NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
 
         refresh()
@@ -918,8 +919,9 @@ final class ShelfView: NSView {
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         setDropHighlight(false)
-        manager?.ingest(pasteboard: sender.draggingPasteboard, into: key)
-        return true
+        // Reporting the truth matters: a rejected payload animates back to
+        // where it came from instead of silently vanishing.
+        return manager?.ingest(pasteboard: sender.draggingPasteboard, into: key) ?? false
     }
 
     override func concludeDragOperation(_ sender: NSDraggingInfo?) {

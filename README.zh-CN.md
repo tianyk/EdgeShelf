@@ -105,6 +105,9 @@ build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang zh --snapshot --snapshot-many
 ```
 
+`--demo`、`--snapshot*`、`--self-test` 和 `--debug-*` 都跑在
+`$TMPDIR/EdgeShelf-Debug` 下一个一次性数据目录里，不会碰你实际使用的搁板。
+
 ## 手动测试清单
 
 1. 从 Finder 拖一个文件到左边缘，搁板出现，松手放入。

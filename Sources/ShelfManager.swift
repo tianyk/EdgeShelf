@@ -26,8 +26,16 @@ final class ShelfManager {
         for state in store.loadStates() {
             states[state.key] = state
         }
-        let referenced = Set(states.values.flatMap { $0.items.map(\.id) })
-        store.cleanUnreferencedFolders(referenced: referenced)
+        if store.loadFailed {
+            // The state file was unreadable and has been moved aside. Every
+            // item folder is therefore unreferenced, and pruning now would
+            // delete copies the user may still want. Keep them and let the
+            // next successful save take over.
+            NSLog("EdgeShelf: skipping the item cleanup after an unreadable shelves.json")
+        } else {
+            let referenced = Set(states.values.flatMap { $0.items.map(\.id) })
+            store.cleanUnreferencedFolders(referenced: referenced)
+        }
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
                                                object: nil,
@@ -317,100 +325,96 @@ final class ShelfManager {
 
     // MARK: - Ingest
 
-    func ingest(pasteboard: NSPasteboard, into key: ShelfKey) {
-        var state = ensureState(for: key)
+    /// Returns `false` when nothing on the pasteboard could become a shelf
+    /// item, so the dragging source animates the item back instead of being
+    /// told the drop was accepted.
+    @discardableResult
+    func ingest(pasteboard: NSPasteboard, into key: ShelfKey) -> Bool {
+        guard let payload = IngestPayload.classify(pasteboard) else {
+            NSSound.beep()
+            return false
+        }
 
-        // Promised files (Photos, Safari downloads, etc.) must be requested
-        // asynchronously. Reading them synchronously on the main thread is a
-        // classic multi-second hang.
-        if let receivers = pasteboard.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil) as? [NSFilePromiseReceiver],
-           !receivers.isEmpty {
+        var state = ensureState(for: key)
+        var added = false
+
+        switch payload {
+        case .promises(let receivers):
+            // Resolving a promise synchronously on the main thread is a
+            // classic multi-second hang, so hand them off and return.
             for receiver in receivers {
                 ingestPromise(receiver, into: key)
             }
+            save()
             DispatchQueue.main.async { [weak self] in
                 self?.windows[key]?.refresh()
                 self?.windows[key]?.setPresentation(.expanded)
                 self?.scheduleAutoHide(key)
                 self?.updateHeights(animated: true)
             }
-            return
-        }
+            return true
 
-        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: false]
-        let urls = (pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [URL]) ?? []
-
-        var added = false
-
-        for url in urls {
-            if url.isFileURL {
-                if state.items.contains(where: { $0.originalPath == url.path }) {
-                    continue
+        case .urls(let urls):
+            for url in urls {
+                if url.isFileURL {
+                    if state.items.contains(where: { $0.originalPath == url.path }) {
+                        continue
+                    }
+                    let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .nameKey])
+                    let isDirectory = values?.isDirectory ?? false
+                    let isImage = !isDirectory
+                        && UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
+                    let size = values?.fileSize.map(Int64.init)
+                    let item = ShelfItem(kind: isDirectory ? .folder : (isImage ? .image : .file),
+                                         displayName: url.lastPathComponent,
+                                         originalPath: url.path,
+                                         byteSize: size)
+                    state.items.append(item)
+                    pendingItems.insert(item.id)
+                    added = true
+                    copyInBackground(item: item, from: url, into: key)
+                } else {
+                    let string = url.absoluteString
+                    guard !state.items.contains(where: { $0.urlString == string }) else { continue }
+                    let item = ShelfItem(kind: .url,
+                                         displayName: url.host ?? url.lastPathComponent,
+                                         urlString: string)
+                    state.items.append(item)
+                    added = true
                 }
-                let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .nameKey])
-                let isDirectory = values?.isDirectory ?? false
-                let isImage = !isDirectory
-                    && UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
-                let size = values?.fileSize.map(Int64.init)
-                let item = ShelfItem(kind: isDirectory ? .folder : (isImage ? .image : .file),
-                                     displayName: url.lastPathComponent,
-                                     originalPath: url.path,
-                                     byteSize: size)
-                state.items.append(item)
-                pendingItems.insert(item.id)
-                added = true
-                copyInBackground(item: item, from: url, into: key)
-            } else {
-                let string = url.absoluteString
-                guard !state.items.contains(where: { $0.urlString == string }) else { continue }
-                let item = ShelfItem(kind: .url,
-                                     displayName: url.host ?? url.lastPathComponent,
-                                     urlString: string)
-                state.items.append(item)
-                added = true
             }
-        }
 
-        if !added, let string = pasteboard.string(forType: .string), !string.isEmpty {
+        case .bitmap(let data, let fileExtension):
+            let item = ShelfItem(kind: .image,
+                                 displayName: L10n.image,
+                                 byteSize: Int64(data.count))
+            state.items.append(item)
+            pendingItems.insert(item.id)
+            added = true
+            storePayload(item: item, data: data, fileExtension: fileExtension, into: key)
+
+        case .text(let string):
             if !state.items.contains(where: { $0.kind == .text && $0.text == string }) {
-                let firstLine = string.split(separator: "\n").first.map(String.init) ?? string
                 let item = ShelfItem(kind: .text,
-                                     displayName: String(firstLine.prefix(60)),
+                                     displayName: IngestPayload.firstLine(of: string),
                                      text: string)
                 state.items.append(item)
                 added = true
             }
-        }
 
-        if !added {
-            // Image data (screenshots, browser images that expose raw data).
-            if let data = pasteboard.data(forType: .png) ?? pasteboard.data(forType: .tiff),
-               let image = NSImage(data: data),
-               let tiff = image.tiffRepresentation,
-               let rep = NSBitmapImageRep(data: tiff),
-               let png = rep.representation(using: .png, properties: [:]) {
-                let item = ShelfItem(kind: .image, displayName: L10n.image)
-                state.items.append(item)
-                pendingItems.insert(item.id)
-                added = true
-                copyQueue.async { [weak self] in
-                    guard let self else { return }
-                    let relative = self.store.writeData(png, itemID: item.id, fileExtension: "png")
-                    DispatchQueue.main.async {
-                        self.pendingItems.remove(item.id)
-                        if let relative {
-                            self.updateItem(id: item.id, in: key) { $0.relativePath = relative }
-                        }
-                        self.windows[key]?.refreshItem(id: item.id)
-                        self.save()
-                    }
-                }
-            }
+        case .richText(let data, let documentType):
+            // Rich text is deduplicated by its decoded body, which is not
+            // available yet, so a repeated drop adds a second card.
+            let item = ShelfItem(kind: .text, displayName: L10n.text)
+            state.items.append(item)
+            pendingItems.insert(item.id)
+            added = true
+            decodeRichText(item: item, data: data, documentType: documentType, into: key)
         }
 
         guard added else {
             NSSound.beep()
-            return
+            return false
         }
 
         states[key] = state
@@ -424,6 +428,7 @@ final class ShelfManager {
             self?.scheduleAutoHide(key)
             self?.updateHeights(animated: true)
         }
+        return true
     }
 
     private func copyInBackground(item: ShelfItem, from url: URL, into key: ShelfKey) {
@@ -438,6 +443,64 @@ final class ShelfManager {
                 self.windows[key]?.refreshItem(id: item.id)
                 self.save()
             }
+        }
+    }
+
+    /// Writes bitmap bytes that arrived on the pasteboard.
+    ///
+    /// The bytes are stored exactly as they arrived. Decoding a photo and
+    /// re-encoding it as PNG costs about a second for 6 MP, changes the file
+    /// the user gets back, and used to run inside the drop callback.
+    private func storePayload(item: ShelfItem, data: Data, fileExtension: String, into key: ShelfKey) {
+        copyQueue.async { [weak self] in
+            guard let self else { return }
+            let relative = self.store.writeData(data, itemID: item.id, fileExtension: fileExtension)
+            DispatchQueue.main.async {
+                self.pendingItems.remove(item.id)
+                guard let relative else {
+                    // The payload was not a decodable image after all, so the
+                    // placeholder should not stay on the shelf.
+                    self.remove(item: item, from: key)
+                    NSSound.beep()
+                    return
+                }
+                self.updateItem(id: item.id, in: key) { $0.relativePath = relative }
+                self.windows[key]?.refreshItem(id: item.id)
+                self.save()
+            }
+        }
+    }
+
+    /// Imports RTF, flat RTFD, or HTML that carried no plain-text flavour.
+    ///
+    /// This runs on the next main-runloop turn. `NSAttributedString`'s HTML
+    /// importer synchronises with the main thread by design, and a cold import
+    /// measured 675 ms, so it must never run inside AppKit's drop callback.
+    private func decodeRichText(item: ShelfItem,
+                                data: Data,
+                                documentType: NSAttributedString.DocumentType,
+                                into key: ShelfKey) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.pendingItems.remove(item.id)
+            let attributed = try? NSAttributedString(
+                data: data,
+                options: [.documentType: documentType],
+                documentAttributes: nil
+            )
+            guard let text = attributed?.string, IngestPayload.hasReadableText(text) else {
+                // A fragment that was nothing but an inline picture decodes to
+                // a single object-replacement character; there is no card here.
+                self.remove(item: item, from: key)
+                NSSound.beep()
+                return
+            }
+            self.updateItem(id: item.id, in: key) {
+                $0.text = text
+                $0.displayName = IngestPayload.firstLine(of: text)
+            }
+            self.windows[key]?.refreshItem(id: item.id)
+            self.save()
         }
     }
 

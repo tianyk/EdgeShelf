@@ -127,6 +127,10 @@ build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang en --snapshot --snapshot-many
 ```
 
+`--demo`, the `--snapshot*` modes, `--self-test` and the `--debug-*`
+printers run against a throwaway store under `$TMPDIR/EdgeShelf-Debug`, so
+they never touch the shelves you actually use.
+
 ## Manual checklist
 
 1. Drag a file from Finder to the left edge. A shelf appears; drop the file.
