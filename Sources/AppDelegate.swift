@@ -66,6 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        if CommandLine.arguments.contains("--debug-menus") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self else { return }
+                print(self.manager.debugMenus())
+                NSApp.terminate(nil)
+            }
+        }
+
         if CommandLine.arguments.contains("--debug-state") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
                 print(self?.manager.debugState() ?? "no manager")
@@ -173,6 +181,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
+        let clearAll = NSMenuItem(title: L10n.clearAllShelves, action: #selector(clearAllShelves), keyEquivalent: "")
+        clearAll.target = self
+        menu.addItem(clearAll)
+
+        menu.addItem(.separator())
+
         let prefs = NSMenuItem(title: L10n.preferences, action: #selector(showPreferences), keyEquivalent: ",")
         prefs.target = self
         menu.addItem(prefs)
@@ -196,6 +210,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func hideEmptyShelves() {
         manager.hideEmptyShelves()
+    }
+
+    @objc private func clearAllShelves() {
+        guard manager.hasAnyItems else { return }
+        if ShelfConfirmation.clearAllShelves() {
+            manager.closeAllShelves()
+        }
     }
 
     @objc private func showPreferences() {

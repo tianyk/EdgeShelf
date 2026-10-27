@@ -30,7 +30,7 @@ diagnosis.
 - Collapses to an 8 × 96 pt gradient tab at the edge as soon as the pointer
   leaves; hover the edge to expand it again.
 - Right-click menu: Open, Show in Finder, Copy, Remove — with keyboard
-  shortcuts.
+  shortcuts — plus Clear Shelf for the whole shelf.
 - Six UN languages plus “Follow System”.
 - No Accessibility, Input Monitoring, or Screen Recording permission required.
 - No `CGWindowListCreate`, no synchronous XPC, no `NSTask` on the main thread.

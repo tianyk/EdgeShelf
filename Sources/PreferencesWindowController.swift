@@ -171,13 +171,7 @@ final class PreferencesWindowController: NSWindowController {
     }
 
     @objc private func closeAllShelves() {
-        let alert = NSAlert()
-        alert.messageText = L10n.removeAllTitle
-        alert.informativeText = L10n.removeAllInfo
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: L10n.cancel)
-        alert.addButton(withTitle: L10n.removeAll)
-        if alert.runModal() == .alertSecondButtonReturn {
+        if ShelfConfirmation.clearAllShelves() {
             manager.closeAllShelves()
         }
     }

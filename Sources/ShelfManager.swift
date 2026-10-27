@@ -599,10 +599,27 @@ final class ShelfManager {
         }
     }
 
+    /// Asks for confirmation and empties a shelf.
+    ///
+    /// Both the panel's own menu and each card's menu route through here, so
+    /// "clear" is one action with one warning however it is reached.
+    func clearShelfAfterConfirmation(_ key: ShelfKey) {
+        guard !items(for: key).isEmpty else { return }
+        if ShelfConfirmation.clearShelf() {
+            closeShelf(key)
+        }
+    }
+
     func closeAllShelves() {
         for key in windows.keys {
             closeShelf(key)
         }
+    }
+
+    /// True when at least one shelf still holds something, so destructive
+    /// menu items are not offered when there is nothing to clear.
+    var hasAnyItems: Bool {
+        states.values.contains { !$0.items.isEmpty }
     }
 
     func flush() {
@@ -618,6 +635,24 @@ final class ShelfManager {
         lines.append("timers=\(autoHideTimers.count)")
         for (key, controller) in windows {
             lines.append("\(key.edge.rawValue): presentation=\(controller.presentation) alpha=\(controller.window?.alphaValue ?? -1) items=\(items(for: key).count)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    /// Prints what a right-click offers, so the shelf and card menus can be
+    /// asserted without driving the GUI.
+    func debugMenus() -> String {
+        var lines: [String] = []
+        let ordered = windows.sorted { $0.key.edge.rawValue < $1.key.edge.rawValue }
+        for (key, controller) in ordered {
+            let items = items(for: key)
+            let titles = controller.shelfView.makeContextMenu()?
+                .items.map { $0.isSeparatorItem ? "---" : $0.title } ?? ["<none>"]
+            lines.append("\(key.edge.rawValue) shelf(count=\(items.count)): \(titles.joined(separator: " | "))")
+
+            guard let first = controller.shelfView.itemViews.values.first else { continue }
+            let cardTitles = first.makeContextMenu().items.map { $0.isSeparatorItem ? "---" : $0.title }
+            lines.append("\(key.edge.rawValue) card(\(first.item.kind.rawValue)): \(cardTitles.joined(separator: " | "))")
         }
         return lines.joined(separator: "\n")
     }

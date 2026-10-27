@@ -496,6 +496,12 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        NSMenu.popUpContextMenu(makeContextMenu(), with: event, for: self)
+    }
+
+    /// The card's menu. Split out of `rightMouseDown` so `--debug-menus` can
+    /// assert on what a right-click actually offers.
+    func makeContextMenu() -> NSMenu {
         let menu = NSMenu()
 
         menu.addItem(menuItem(L10n.open, symbol: "arrow.up.forward.app", action: #selector(menuOpen), key: "\r", modifiers: []))
@@ -506,8 +512,16 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
         menu.addItem(menuItem(L10n.copy, symbol: "doc.on.doc", action: #selector(menuCopy), key: "c", modifiers: .command))
         menu.addItem(.separator())
         menu.addItem(menuItem(L10n.removeFromShelf, symbol: "trash", action: #selector(menuRemove), key: "\u{8}", modifiers: []))
+        // Right-clicking a card is the most likely way a user looks for shelf
+        // actions, so the whole-shelf command is reachable from here too.
+        if let manager, !manager.items(for: key).isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.clearShelf,
+                                  symbol: "trash.slash",
+                                  action: #selector(menuClearShelf)))
+        }
 
-        NSMenu.popUpContextMenu(menu, with: event, for: self)
+        return menu
     }
 
     private func menuItem(_ title: String,
@@ -526,6 +540,7 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     @objc private func menuReveal() { showInFinder() }
     @objc private func menuCopy() { copyItem() }
     @objc private func menuRemove() { manager?.remove(item: item, from: key) }
+    @objc private func menuClearShelf() { manager?.clearShelfAfterConfirmation(key) }
 
     // MARK: Dragging out
 
@@ -603,13 +618,12 @@ final class ShelfView: NSView {
     private let titleLabel = NSTextField(labelWithString: L10n.shelf)
     private let countBackground = NSView()
     private let countLabel = NSTextField(labelWithString: "")
-    private let closeButton = HoverIconButton()
     private let scrollView = NSScrollView()
     private let stack = NSStackView()
     private let emptyState = EmptyStateView()
     private let tabView = ShelfTabView()
 
-    private var itemViews: [UUID: ItemView] = [:]
+    private(set) var itemViews: [UUID: ItemView] = [:]
     private var isDropHighlighted = false
     private var isCollapsed = false
 
@@ -646,14 +660,6 @@ final class ShelfView: NSView {
         countLabel.textColor = ShelfTheme.accentText
         countLabel.alignment = .center
         countBackground.addSubview(countLabel)
-
-        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: L10n.closeShelf)
-        closeButton.isBordered = false
-        closeButton.contentTintColor = .secondaryLabelColor
-        closeButton.target = self
-        closeButton.action = #selector(closeShelf)
-        closeButton.toolTip = L10n.closeShelfHelp
-        contentContainer.addSubview(closeButton)
 
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
@@ -714,7 +720,6 @@ final class ShelfView: NSView {
         let countWidth = max(20, textSize.width + 10)
 
         if L10n.isRTL {
-            closeButton.frame = NSRect(x: 10, y: 10, width: 28, height: 28)
             headerIcon.frame = NSRect(x: panelWidth - 14 - 17, y: 16, width: 17, height: 17)
             titleLabel.sizeToFit()
             titleLabel.frame = NSRect(x: headerIcon.frame.minX - 8 - titleLabel.frame.width,
@@ -733,14 +738,12 @@ final class ShelfView: NSView {
                                            y: 15,
                                            width: countWidth,
                                            height: badgeHeight)
-            closeButton.frame = NSRect(x: panelWidth - 38, y: 10, width: 28, height: 28)
         }
 
         countLabel.frame = NSRect(x: (countWidth - textSize.width) / 2,
                                   y: (badgeHeight - textSize.height) / 2,
                                   width: textSize.width,
                                   height: textSize.height)
-        closeButton.layer?.cornerRadius = 14
 
         scrollView.frame = NSRect(x: ShelfMetrics.contentInset,
                                   y: ShelfMetrics.headerHeight + 6,
@@ -832,8 +835,30 @@ final class ShelfView: NSView {
         return lines.joined(separator: "\n")
     }
 
-    @objc private func closeShelf() {
-        manager?.closeShelf(key)
+    /// Clearing is destructive and cannot be undone, so it lives on a
+    /// right-click rather than on a button in the header, where an "x" reads
+    /// as "close" but actually deleted every item.
+    override func rightMouseDown(with event: NSEvent) {
+        guard let menu = makeContextMenu() else { return }
+        NSMenu.popUpContextMenu(menu, with: event, for: self)
+    }
+
+    /// The panel's own menu. `ItemView` handles right-clicks on a card; this
+    /// covers the empty area around them.
+    func makeContextMenu() -> NSMenu? {
+        guard let manager, !manager.items(for: key).isEmpty else { return nil }
+        let menu = NSMenu()
+        let clear = NSMenuItem(title: L10n.clearShelf,
+                               action: #selector(clearShelfConfirmed),
+                               keyEquivalent: "")
+        clear.target = self
+        menu.addItem(clear)
+        return menu
+    }
+
+    @objc private func clearShelfConfirmed() {
+        guard let manager else { return }
+        manager.clearShelfAfterConfirmation(key)
     }
 
     // MARK: Presentation

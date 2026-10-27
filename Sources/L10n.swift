@@ -121,8 +121,10 @@ enum L10n {
     static var removeFromShelf: String { string("removeFromShelf") }
 
     // Shelf chrome.
-    static var closeShelf: String { string("closeShelf") }
-    static var closeShelfHelp: String { string("closeShelfHelp") }
+    static var clearShelf: String { string("clearShelf") }
+    static var clearShelfTitle: String { string("clearShelfTitle") }
+    static var clearShelfConfirm: String { string("clearShelfConfirm") }
+    static var clearAllShelves: String { string("clearAllShelves") }
     static var removeItemHelp: String { string("removeItemHelp") }
 
     // Status menu.
@@ -195,8 +197,10 @@ enum L10n {
         "copy": "Copy",
         "remove": "Remove",
         "removeFromShelf": "Remove from Shelf",
-        "closeShelf": "Close shelf",
-        "closeShelfHelp": "Close this shelf and remove its items",
+        "clearShelf": "Clear Shelf…",
+        "clearAllShelves": "Clear All Shelves…",
+        "clearShelfTitle": "Clear this shelf?",
+        "clearShelfConfirm": "This deletes the copies EdgeShelf made of these items. The originals are not affected. Text, links and screenshots on the shelf cannot be recovered.",
         "removeItemHelp": "Remove from shelf",
         "showShelves": "Show Shelves",
         "hideEmptyShelves": "Hide Empty Shelves",
@@ -257,8 +261,10 @@ enum L10n {
         "copy": "拷贝",
         "remove": "移除",
         "removeFromShelf": "从搁板移除",
-        "closeShelf": "关闭搁板",
-        "closeShelfHelp": "关闭此搁板并移除其中的项目",
+        "clearShelf": "清空搁板…",
+        "clearAllShelves": "清空所有搁板…",
+        "clearShelfTitle": "清空这个搁板？",
+        "clearShelfConfirm": "这会删除 EdgeShelf 为这些项目保存的副本，不会影响原始文件。搁板上的文本、链接和截屏无法恢复。",
         "removeItemHelp": "从搁板移除",
         "showShelves": "显示所有搁板",
         "hideEmptyShelves": "隐藏空搁板",
@@ -319,8 +325,10 @@ enum L10n {
         "copy": "Copier",
         "remove": "Retirer",
         "removeFromShelf": "Retirer de l’étagère",
-        "closeShelf": "Fermer l’étagère",
-        "closeShelfHelp": "Fermer cette étagère et retirer ses éléments",
+        "clearShelf": "Vider l’étagère…",
+        "clearAllShelves": "Vider toutes les étagères…",
+        "clearShelfTitle": "Vider cette étagère ?",
+        "clearShelfConfirm": "Cela supprime les copies qu’EdgeShelf a faites de ces éléments. Les originaux ne sont pas affectés. Le texte, les liens et les captures d’écran de l’étagère ne peuvent pas être récupérés.",
         "removeItemHelp": "Retirer de l’étagère",
         "showShelves": "Afficher les étagères",
         "hideEmptyShelves": "Masquer les étagères vides",
@@ -381,8 +389,10 @@ enum L10n {
         "copy": "Copiar",
         "remove": "Eliminar",
         "removeFromShelf": "Quitar del estante",
-        "closeShelf": "Cerrar estante",
-        "closeShelfHelp": "Cerrar este estante y quitar sus elementos",
+        "clearShelf": "Vaciar estante…",
+        "clearAllShelves": "Vaciar todos los estantes…",
+        "clearShelfTitle": "¿Vaciar este estante?",
+        "clearShelfConfirm": "Esto elimina las copias que EdgeShelf hizo de estos elementos. Los originales no se modifican. El texto, los enlaces y las capturas del estante no se pueden recuperar.",
         "removeItemHelp": "Quitar del estante",
         "showShelves": "Mostrar estantes",
         "hideEmptyShelves": "Ocultar estantes vacíos",
@@ -443,8 +453,10 @@ enum L10n {
         "copy": "Скопировать",
         "remove": "Удалить",
         "removeFromShelf": "Убрать с полки",
-        "closeShelf": "Закрыть полку",
-        "closeShelfHelp": "Закрыть эту полку и удалить её элементы",
+        "clearShelf": "Очистить полку…",
+        "clearAllShelves": "Очистить все полки…",
+        "clearShelfTitle": "Очистить эту полку?",
+        "clearShelfConfirm": "Будут удалены копии, которые EdgeShelf сохранил для этих элементов. Оригиналы не затрагиваются. Текст, ссылки и снимки экрана с полки восстановить нельзя.",
         "removeItemHelp": "Убрать с полки",
         "showShelves": "Показать полки",
         "hideEmptyShelves": "Скрыть пустые полки",
@@ -505,8 +517,10 @@ enum L10n {
         "copy": "نسخ",
         "remove": "إزالة",
         "removeFromShelf": "إزالة من الرف",
-        "closeShelf": "إغلاق الرف",
-        "closeShelfHelp": "إغلاق هذا الرف وإزالة عناصره",
+        "clearShelf": "إفراغ الرف…",
+        "clearAllShelves": "إفراغ كل الرفوف…",
+        "clearShelfTitle": "إفراغ هذا الرف؟",
+        "clearShelfConfirm": "سيؤدي هذا إلى حذف النسخ التي أنشأها EdgeShelf لهذه العناصر. لن تتأثر الملفات الأصلية. لا يمكن استرداد النصوص والروابط ولقطات الشاشة الموجودة على الرف.",
         "removeItemHelp": "إزالة من الرف",
         "showShelves": "إظهار الرفوف",
         "hideEmptyShelves": "إخفاء الرفوف الفارغة",
