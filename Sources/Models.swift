@@ -52,9 +52,11 @@ struct ShelfItem: Codable, Identifiable, Equatable {
     var id: UUID
     var kind: ItemKind
     var displayName: String
-    /// Path relative to the store's Items directory. Nil while a copy is in flight.
+    /// Path relative to the store's Items directory. Only used for content
+    /// EdgeShelf owns: pasted images, promised files, and legacy copies.
     var relativePath: String?
-    /// Original location, used as a fallback and to avoid duplicate copies.
+    /// Original location for a Finder drop. The shelf references this path
+    /// instead of copying it; when it disappears, the item leaves the shelf.
     var originalPath: String?
     var text: String?
     var urlString: String?
@@ -77,6 +79,14 @@ struct ShelfItem: Codable, Identifiable, Equatable {
         self.urlString = urlString
         self.addedAt = Date()
         self.byteSize = byteSize
+    }
+
+    /// True for items whose content lives at a file-system path.
+    var isFileBacked: Bool {
+        switch kind {
+        case .file, .folder, .image: return true
+        case .text, .url: return false
+        }
     }
 
     var subtitle: String {

@@ -20,8 +20,14 @@ diagnosis.
 ## Features
 
 - Drag files, folders, text, images, and links to the left or right edge.
-- Items are copied into `~/Library/Application Support/EdgeShelf/Items`, so a
-  shelf item survives if the original is moved or deleted.
+- Items reference the original file or folder instead of copying it, so even a
+  huge file lands on the shelf instantly and uses no extra disk space.
+- Each file item is watched with a kqueue vnode watcher: deleting the original
+  (including moving it to the Trash) removes the card immediately, while a
+  rename or move within the volume updates the card’s path and name.
+- Pasted images and files received through a file promise are stored in
+  `~/Library/Application Support/EdgeShelf/Items`; everything else stays in
+  place.
 - Dynamic shelf height (220–560 pt), frozen while a drag is in flight.
 - Warm paper light theme and graphite dark theme, with a terracotta accent,
   quiet diagonal stripes, and a soft outer shadow.
@@ -102,19 +108,22 @@ with `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`,
 ## Usage
 
 - Drag something to the left or right screen edge. A shelf appears.
-- Drop it; the item is copied into EdgeShelf’s storage.
+- Drop it; the shelf points at the original file instead of copying it.
 - Move away and the shelf collapses to the edge tab immediately.
 - Hover the edge tab to expand the shelf again.
 - Right-click an item for Open / Show in Finder / Copy / Remove.
-- Drag an item out to Finder, Mail, Slack, etc. If the original file still
-  exists, the drag uses the original path, so dropping it back where it came
-  from is a no-op instead of a “replace?” prompt.
+- Drag an item out to Finder, Mail, Slack, etc. The drag uses the original
+  path and is a copy operation, so the source file stays where it is.
 - Menu bar → Preferences for edges, behaviour, and language.
+
+Copies made by older versions are removed on first launch when the original
+still exists. A copy whose original is already gone is kept, because it is the
+only remaining content.
 
 ## Test
 
 ```bash
-# Data model + pasteboard + store round-trip
+# Data model + pasteboard + stored payloads + file watcher
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --self-test
 
 # Add demo items and show the left shelf
@@ -138,11 +147,13 @@ they never touch the shelves you actually use.
 3. Move to the edge tab. The shelf expands.
 4. Drag the file from the shelf back to its original folder. No “replace?”
    prompt.
-5. Drag text from a browser/editor to the right edge.
-6. Right-click an item; try Open, Show in Finder, and Copy.
-7. Change the language in Preferences; the shelf and preferences update
+5. Rename the file in Finder; the card’s name and path update.
+6. Delete the original file in Finder; the card disappears from the shelf.
+7. Drag text from a browser/editor to the right edge.
+8. Right-click an item; try Open, Show in Finder, and Copy.
+9. Change the language in Preferences; the shelf and preferences update
    immediately.
-8. Quit and relaunch; shelves, items, and the language choice come back.
+10. Quit and relaunch; shelves, items, and the language choice come back.
 
 ## Known limitations
 
@@ -150,8 +161,14 @@ they never touch the shelves you actually use.
   along the same edge.
 - Top and bottom edges are not implemented yet.
 - No Quick Look panel, “Open With” submenu, or multi-select yet.
-- Very large folders take a while to copy; the item shows “Copying…” and
-  cannot be dragged out until the copy finishes.
+- Renames and moves are followed while the app is running and the file stays
+  on the same volume. A move made while the app is not running, or a move to
+  another volume, is treated as a deletion. Items on an unmounted volume are
+  kept until the volume is back.
+- Renaming a folder that contains the item is picked up at the next launch,
+  wake, or mount; the item’s own vnode does not report ancestor changes.
+- Some network volumes do not deliver kqueue events. On those, changes are
+  noticed at launch, wake, or mount/unmount, not immediately.
 - Shelf state is keyed by display ID. If a display gets a different ID after
   reconnecting, its shelf items are not shown on the new display.
 - Arabic mirrors the shelf header and cards; the preferences window and the
@@ -170,7 +187,8 @@ Sources/
   ShelfView.swift                 shelf panel and item cards
   Theme.swift                     metrics, palette, background, tab, empty state
   L10n.swift                      all UI strings and the six language tables
-  Store.swift                     JSON + item file storage
+  FileWatcher.swift               kqueue watcher for deletes/renames/moves
+  Store.swift                     JSON state + stored image/promise payloads
   Models.swift                    ShelfItem/ShelfState/ShelfEdge
   Preferences.swift               UserDefaults
   PreferencesWindowController.swift

@@ -88,7 +88,13 @@ then sit in front of every later drop.
   `DispatchQueue.main.async`; all window work happens on the next run-loop
   turn, outside the Core Drag callback.
 - `performDragOperation` parses URLs/text quickly and returns; the shelf is
-  rebuilt, thumbnails are generated, and files are copied asynchronously.
+  rebuilt, thumbnails are generated, and only pasted image data or promised
+  files are written to disk. Finder drops are referenced in place, never copied.
+- Each referenced file has a kqueue vnode watcher: unlink or a move to the
+  Trash removes its card, while a rename/move on the same volume updates the
+  card through `F_GETPATH` on the still-open descriptor.
+- No periodic polling: a one-off reconciliation runs at launch, after sleep,
+  and when a volume is mounted or unmounted.
 - File promises use `NSFilePromiseReceiver.receivePromisedFiles` instead of
   materialising promised data on the main thread.
 - No `CGWindowListCreate`, no Accessibility/Input Monitoring permission, no

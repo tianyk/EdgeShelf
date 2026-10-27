@@ -3,11 +3,13 @@ import AppKit
 /// Disk layout:
 ///   ~/Library/Application Support/EdgeShelf/
 ///     shelves.json
-///     Items/<item-uuid>/<original file name>
+///     Items/<item-uuid>/<file>
 ///
-/// The app copies dropped files into Items/ so a shelf item survives even if
-/// the user moves or deletes the original. All file work happens on a serial
-/// background queue; nothing here touches AppKit.
+/// Finder drops are referenced in place; the shelf never copies them. Items/
+/// holds only content EdgeShelf has to own: pasted image data, files received
+/// through an `NSFilePromiseReceiver` (which have no source path), and copies
+/// written by older versions. State writes run on a serial background queue;
+/// nothing here touches AppKit.
 final class Store {
     static let shared = Store(rootURL: Store.defaultRootURL)
 
@@ -61,9 +63,9 @@ final class Store {
     /// Returns the persisted shelves.
     ///
     /// A file that fails to decode is moved aside instead of being treated as
-    /// "no shelves": `ShelfManager` prunes item folders that no persisted item
-    /// references, so silently returning `[]` here would delete every copy the
-    /// user has on a shelf after a single bad write.
+    /// "no shelves": `ShelfManager` prunes item folders that no persisted
+    /// store-backed item references, so silently returning `[]` here would
+    /// delete every stored image or promised file after a single bad write.
     func loadStates() -> [ShelfState] {
         loadFailed = false
         guard let data = try? Data(contentsOf: stateURL) else { return [] }
@@ -122,43 +124,31 @@ final class Store {
         itemsURL.appendingPathComponent(path)
     }
 
+    /// The item's file on disk. The original path wins while it exists; a
+    /// stored copy is the fallback for pasted images, promised files, and
+    /// legacy items whose original is gone.
     func absoluteURL(for item: ShelfItem) -> URL? {
-        if let relativePath = item.relativePath {
-            let url = url(forRelativePath: relativePath)
-            if fileManager.fileExists(atPath: url.path) { return url }
-        }
         if let originalPath = item.originalPath {
             let url = URL(fileURLWithPath: originalPath)
+            if fileManager.fileExists(atPath: url.path) { return url }
+        }
+        if let relativePath = item.relativePath {
+            let url = url(forRelativePath: relativePath)
             if fileManager.fileExists(atPath: url.path) { return url }
         }
         return nil
     }
 
-    // MARK: - Item files
-
-    /// Copies a file or folder into the store. Returns the path relative to
-    /// Items/. Call from a background queue.
-    func copyFile(at source: URL, itemID: UUID) -> String? {
-        let folderName = itemID.uuidString
-        let destinationFolder = itemsURL.appendingPathComponent(folderName, isDirectory: true)
-        do {
-            try fileManager.createDirectory(at: destinationFolder, withIntermediateDirectories: true)
-            var destination = destinationFolder.appendingPathComponent(source.lastPathComponent)
-            if fileManager.fileExists(atPath: destination.path) {
-                let base = destination.deletingPathExtension().lastPathComponent
-                let ext = destination.pathExtension
-                let unique = ext.isEmpty ? "\(base)-\(UUID().uuidString.prefix(6))" : "\(base)-\(UUID().uuidString.prefix(6)).\(ext)"
-                destination = destinationFolder.appendingPathComponent(unique)
-            }
-            try fileManager.copyItem(at: source, to: destination)
-            return "\(folderName)/\(destination.lastPathComponent)"
-        } catch {
-            NSLog("EdgeShelf: copy failed \(source.path): \(error)")
-            return nil
-        }
+    /// True when either the original file or a stored copy still exists.
+    /// Call from a background queue: a stale network path can block.
+    func isReachable(_ item: ShelfItem) -> Bool {
+        absoluteURL(for: item) != nil
     }
 
+    // MARK: - Item files
+
     /// Writes raw image data into the store. Returns a relative path.
+    /// Only used for content with no external file, such as a browser drag.
     func writeData(_ data: Data, itemID: UUID, fileExtension: String) -> String? {
         let folderName = itemID.uuidString
         let folder = itemsURL.appendingPathComponent(folderName, isDirectory: true)
@@ -182,6 +172,9 @@ final class Store {
     }
 
     /// Removes item folders that no persisted item references. Call on launch.
+    /// Pass only items that still use a stored copy (`relativePath != nil`);
+    /// folders left behind by items migrated to direct references are then
+    /// reclaimed too.
     func cleanUnreferencedFolders(referenced: Set<UUID>) {
         queue.async { [fileManager, itemsURL] in
             guard let contents = try? fileManager.contentsOfDirectory(at: itemsURL,

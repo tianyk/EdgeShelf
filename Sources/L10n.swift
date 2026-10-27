@@ -156,7 +156,6 @@ enum L10n {
     static var leftEdge: String { string("leftEdge") }
     static var rightEdge: String { string("rightEdge") }
     static var incomingFile: String { string("incomingFile") }
-    static var unavailableFile: String { string("unavailableFile") }
 
     // Demo content.
     static var demoWelcomeTitle: String { string("demoWelcomeTitle") }
@@ -200,7 +199,7 @@ enum L10n {
         "clearShelf": "Clear Shelf…",
         "clearAllShelves": "Clear All Shelves…",
         "clearShelfTitle": "Clear this shelf?",
-        "clearShelfConfirm": "This deletes the copies EdgeShelf made of these items. The originals are not affected. Text, links and screenshots on the shelf cannot be recovered.",
+        "clearShelfConfirm": "This removes every item from this shelf. Your original files and folders are not touched. Text, links and pasted images on the shelf cannot be recovered.",
         "removeItemHelp": "Remove from shelf",
         "showShelves": "Show Shelves",
         "hideEmptyShelves": "Hide Empty Shelves",
@@ -216,7 +215,7 @@ enum L10n {
         "showDataFolder": "Show Data Folder",
         "closeAllShelves": "Close All Shelves",
         "removeAllTitle": "Remove all shelf items?",
-        "removeAllInfo": "This deletes the copies EdgeShelf made of every item currently on a shelf. The originals are not affected.",
+        "removeAllInfo": "This removes every item from the shelves. Your original files and folders are not touched. Text, links and pasted images cannot be recovered.",
         "cancel": "Cancel",
         "removeAll": "Remove All",
         "languageLabel": "Language",
@@ -224,7 +223,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf is a small reimplementation of Dropshelf for macOS 26/27.
 
-        Drag files, folders, text, images or links to the left or right edge of the screen. The shelf keeps a copy so the item stays available even if the original moves.
+        Drag files, folders, text, images or links to the left or right edge of the screen. The shelf points at the original file instead of making its own copy; deleting the original removes the item from the shelf.
 
         Version %@
         """,
@@ -232,7 +231,6 @@ enum L10n {
         "leftEdge": "Left edge",
         "rightEdge": "Right edge",
         "incomingFile": "Incoming file",
-        "unavailableFile": "Unavailable file",
         "demoWelcomeTitle": "Welcome to EdgeShelf",
         "demoWelcomeText": "Drag files, folders, text, images or links to a screen edge.",
         "demoDesignTitle": "Design notes",
@@ -264,7 +262,7 @@ enum L10n {
         "clearShelf": "清空搁板…",
         "clearAllShelves": "清空所有搁板…",
         "clearShelfTitle": "清空这个搁板？",
-        "clearShelfConfirm": "这会删除 EdgeShelf 为这些项目保存的副本，不会影响原始文件。搁板上的文本、链接和截屏无法恢复。",
+        "clearShelfConfirm": "这会移除搁板上的所有项目，不会改动原始文件或文件夹。搁板上的文本、链接和粘贴的图片无法恢复。",
         "removeItemHelp": "从搁板移除",
         "showShelves": "显示所有搁板",
         "hideEmptyShelves": "隐藏空搁板",
@@ -280,7 +278,7 @@ enum L10n {
         "showDataFolder": "显示数据文件夹",
         "closeAllShelves": "关闭所有搁板",
         "removeAllTitle": "移除所有搁板项目？",
-        "removeAllInfo": "这会删除 EdgeShelf 为搁板上的每个项目保存的副本，不会影响原始文件。",
+        "removeAllInfo": "这会移除所有搁板项目，不会改动原始文件或文件夹。文本、链接和粘贴的图片无法恢复。",
         "cancel": "取消",
         "removeAll": "全部移除",
         "languageLabel": "语言",
@@ -288,7 +286,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf 是一个为 macOS 26/27 重新实现的 Dropshelf。
 
-        把文件、文件夹、文本、图片或链接拖到屏幕左/右边缘。搁板会保存一份副本，所以原文件移动后项目仍然可用。
+        把文件、文件夹、文本、图片或链接拖到屏幕左/右边缘。搁板直接引用原始文件，不会额外复制；如果原文件被删除，项目也会从搁板上消失。
 
         版本 %@
         """,
@@ -296,7 +294,6 @@ enum L10n {
         "leftEdge": "左边缘",
         "rightEdge": "右边缘",
         "incomingFile": "正在接收文件",
-        "unavailableFile": "文件不可用",
         "demoWelcomeTitle": "欢迎使用 EdgeShelf",
         "demoWelcomeText": "把文件、文件夹、文本、图片或链接拖到屏幕边缘。",
         "demoDesignTitle": "设计笔记",
@@ -328,7 +325,7 @@ enum L10n {
         "clearShelf": "Vider l’étagère…",
         "clearAllShelves": "Vider toutes les étagères…",
         "clearShelfTitle": "Vider cette étagère ?",
-        "clearShelfConfirm": "Cela supprime les copies qu’EdgeShelf a faites de ces éléments. Les originaux ne sont pas affectés. Le texte, les liens et les captures d’écran de l’étagère ne peuvent pas être récupérés.",
+        "clearShelfConfirm": "Cela retire tous les éléments de cette étagère. Vos fichiers et dossiers d’origine ne sont pas modifiés. Le texte, les liens et les images collées sur l’étagère ne peuvent pas être récupérés.",
         "removeItemHelp": "Retirer de l’étagère",
         "showShelves": "Afficher les étagères",
         "hideEmptyShelves": "Masquer les étagères vides",
@@ -344,7 +341,7 @@ enum L10n {
         "showDataFolder": "Afficher le dossier de données",
         "closeAllShelves": "Fermer toutes les étagères",
         "removeAllTitle": "Retirer tous les éléments des étagères ?",
-        "removeAllInfo": "Cela supprime les copies qu’EdgeShelf a faites de chaque élément actuellement sur une étagère. Les originaux ne sont pas affectés.",
+        "removeAllInfo": "Cela retire tous les éléments des étagères. Vos fichiers et dossiers d’origine ne sont pas modifiés. Le texte, les liens et les images collées ne peuvent pas être récupérés.",
         "cancel": "Annuler",
         "removeAll": "Tout retirer",
         "languageLabel": "Langue",
@@ -352,7 +349,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf est une réimplémentation de Dropshelf pour macOS 26/27.
 
-        Faites glisser des fichiers, dossiers, textes, images ou liens vers le bord gauche ou droit de l’écran. L’étagère conserve une copie pour que l’élément reste disponible même si l’original est déplacé.
+        Faites glisser des fichiers, dossiers, textes, images ou liens vers le bord gauche ou droit de l’écran. L’étagère fait référence au fichier d’origine sans en faire de copie ; si vous supprimez l’original, l’élément quitte aussi l’étagère.
 
         Version %@
         """,
@@ -360,7 +357,6 @@ enum L10n {
         "leftEdge": "Bord gauche",
         "rightEdge": "Bord droit",
         "incomingFile": "Fichier entrant",
-        "unavailableFile": "Fichier indisponible",
         "demoWelcomeTitle": "Bienvenue dans EdgeShelf",
         "demoWelcomeText": "Faites glisser des fichiers, dossiers, textes, images ou liens vers un bord de l’écran.",
         "demoDesignTitle": "Notes de design",
@@ -392,7 +388,7 @@ enum L10n {
         "clearShelf": "Vaciar estante…",
         "clearAllShelves": "Vaciar todos los estantes…",
         "clearShelfTitle": "¿Vaciar este estante?",
-        "clearShelfConfirm": "Esto elimina las copias que EdgeShelf hizo de estos elementos. Los originales no se modifican. El texto, los enlaces y las capturas del estante no se pueden recuperar.",
+        "clearShelfConfirm": "Esto quita todos los elementos de este estante. Tus archivos y carpetas originales no se modifican. El texto, los enlaces y las imágenes pegadas en el estante no se pueden recuperar.",
         "removeItemHelp": "Quitar del estante",
         "showShelves": "Mostrar estantes",
         "hideEmptyShelves": "Ocultar estantes vacíos",
@@ -408,7 +404,7 @@ enum L10n {
         "showDataFolder": "Mostrar carpeta de datos",
         "closeAllShelves": "Cerrar todos los estantes",
         "removeAllTitle": "¿Quitar todos los elementos de los estantes?",
-        "removeAllInfo": "Esto elimina las copias que EdgeShelf hizo de cada elemento que está en un estante. Los originales no se modifican.",
+        "removeAllInfo": "Esto quita todos los elementos de los estantes. Tus archivos y carpetas originales no se modifican. El texto, los enlaces y las imágenes pegadas no se pueden recuperar.",
         "cancel": "Cancelar",
         "removeAll": "Quitar todo",
         "languageLabel": "Idioma",
@@ -416,7 +412,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf es una reimplementación de Dropshelf para macOS 26/27.
 
-        Arrastra archivos, carpetas, texto, imágenes o enlaces al borde izquierdo o derecho de la pantalla. El estante guarda una copia para que el elemento siga disponible aunque muevas el original.
+        Arrastra archivos, carpetas, texto, imágenes o enlaces al borde izquierdo o derecho de la pantalla. El estante hace referencia al archivo original sin hacer una copia: si eliminas el original, el elemento también desaparece del estante.
 
         Versión %@
         """,
@@ -424,7 +420,6 @@ enum L10n {
         "leftEdge": "Borde izquierdo",
         "rightEdge": "Borde derecho",
         "incomingFile": "Archivo entrante",
-        "unavailableFile": "Archivo no disponible",
         "demoWelcomeTitle": "Bienvenido a EdgeShelf",
         "demoWelcomeText": "Arrastra archivos, carpetas, texto, imágenes o enlaces a un borde de la pantalla.",
         "demoDesignTitle": "Notas de diseño",
@@ -456,7 +451,7 @@ enum L10n {
         "clearShelf": "Очистить полку…",
         "clearAllShelves": "Очистить все полки…",
         "clearShelfTitle": "Очистить эту полку?",
-        "clearShelfConfirm": "Будут удалены копии, которые EdgeShelf сохранил для этих элементов. Оригиналы не затрагиваются. Текст, ссылки и снимки экрана с полки восстановить нельзя.",
+        "clearShelfConfirm": "Все элементы будут убраны с этой полки. Ваши исходные файлы и папки не затрагиваются. Текст, ссылки и вставленные изображения с полки восстановить нельзя.",
         "removeItemHelp": "Убрать с полки",
         "showShelves": "Показать полки",
         "hideEmptyShelves": "Скрыть пустые полки",
@@ -472,7 +467,7 @@ enum L10n {
         "showDataFolder": "Показать папку данных",
         "closeAllShelves": "Закрыть все полки",
         "removeAllTitle": "Удалить все элементы с полок?",
-        "removeAllInfo": "Будут удалены копии, которые EdgeShelf сохранил для каждого элемента на полках. Оригиналы не затрагиваются.",
+        "removeAllInfo": "Все элементы будут убраны со всех полок. Ваши исходные файлы и папки не затрагиваются. Текст, ссылки и вставленные изображения восстановить нельзя.",
         "cancel": "Отмена",
         "removeAll": "Удалить всё",
         "languageLabel": "Язык",
@@ -480,7 +475,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf — реализация Dropshelf для macOS 26/27.
 
-        Перетащите файлы, папки, текст, изображения или ссылки к левому или правому краю экрана. Полка сохраняет копию, поэтому элемент остаётся доступным, даже если оригинал перемещён.
+        Перетащите файлы, папки, текст, изображения или ссылки к левому или правому краю экрана. Полка ссылается на исходный файл и не создаёт его копию: если удалить оригинал, элемент исчезнет с полки.
 
         Версия %@
         """,
@@ -488,7 +483,6 @@ enum L10n {
         "leftEdge": "Левый край",
         "rightEdge": "Правый край",
         "incomingFile": "Получение файла",
-        "unavailableFile": "Файл недоступен",
         "demoWelcomeTitle": "Добро пожаловать в EdgeShelf",
         "demoWelcomeText": "Перетащите файлы, папки, текст, изображения или ссылки к краю экрана.",
         "demoDesignTitle": "Заметки по дизайну",
@@ -520,7 +514,7 @@ enum L10n {
         "clearShelf": "إفراغ الرف…",
         "clearAllShelves": "إفراغ كل الرفوف…",
         "clearShelfTitle": "إفراغ هذا الرف؟",
-        "clearShelfConfirm": "سيؤدي هذا إلى حذف النسخ التي أنشأها EdgeShelf لهذه العناصر. لن تتأثر الملفات الأصلية. لا يمكن استرداد النصوص والروابط ولقطات الشاشة الموجودة على الرف.",
+        "clearShelfConfirm": "سيؤدي هذا إلى إزالة كل العناصر من هذا الرف. لن تتأثر ملفاتك ومجلداتك الأصلية. لا يمكن استرداد النصوص والروابط والصور الملصقة على الرف.",
         "removeItemHelp": "إزالة من الرف",
         "showShelves": "إظهار الرفوف",
         "hideEmptyShelves": "إخفاء الرفوف الفارغة",
@@ -536,7 +530,7 @@ enum L10n {
         "showDataFolder": "إظهار مجلد البيانات",
         "closeAllShelves": "إغلاق كل الرفوف",
         "removeAllTitle": "إزالة كل عناصر الرفوف؟",
-        "removeAllInfo": "سيتم حذف النسخ التي أنشأها EdgeShelf لكل عنصر موجود على الرفوف. لن تتأثر الملفات الأصلية.",
+        "removeAllInfo": "سيؤدي هذا إلى إزالة كل العناصر من الرفوف. لن تتأثر ملفاتك ومجلداتك الأصلية. لا يمكن استرداد النصوص والروابط والصور الملصقة.",
         "cancel": "إلغاء",
         "removeAll": "إزالة الكل",
         "languageLabel": "اللغة",
@@ -544,7 +538,7 @@ enum L10n {
         "aboutText": """
         EdgeShelf هو إعادة تنفيذ لتطبيق Dropshelf لنظام macOS 26/27.
 
-        اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى الحافة اليسرى أو اليمنى للشاشة. يحتفظ الرف بنسخة ليبقى العنصر متاحًا حتى إذا نُقل الأصل.
+        اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى الحافة اليسرى أو اليمنى للشاشة. يشير الرف إلى الملف الأصلي دون إنشاء نسخة منه: وإذا حذفت الأصل فسيختفي العنصر من الرف أيضًا.
 
         الإصدار %@
         """,
@@ -552,7 +546,6 @@ enum L10n {
         "leftEdge": "الحافة اليسرى",
         "rightEdge": "الحافة اليمنى",
         "incomingFile": "ملف قادم",
-        "unavailableFile": "ملف غير متاح",
         "demoWelcomeTitle": "مرحبًا بك في EdgeShelf",
         "demoWelcomeText": "اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى حافة الشاشة.",
         "demoDesignTitle": "ملاحظات التصميم",

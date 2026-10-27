@@ -3,13 +3,13 @@ import UniformTypeIdentifiers
 
 /// Owns shelf state, disk persistence, and the pre-created edge windows.
 ///
-/// Threading rule: every method here is called on the main thread. The only
-/// background work is file copying, which reports back with
+/// Threading rule: every method here is called on the main thread. File checks
+/// and writes for stored payloads run on `ioQueue` and report back with
 /// DispatchQueue.main.async.
 final class ShelfManager {
     private let store = Store.shared
     private let prefs = Preferences.shared
-    private let copyQueue = DispatchQueue(label: "com.doge.edgeshelf.copy", qos: .utility)
+    private let ioQueue = DispatchQueue(label: "com.doge.edgeshelf.io", qos: .utility)
     private var states: [ShelfKey: ShelfState] = [:]
     private(set) var windows: [ShelfKey: ShelfWindowController] = [:]
     private var pendingItems: Set<UUID> = []
@@ -21,6 +21,40 @@ final class ShelfManager {
     private var autoHideTimers: [ShelfKey: Timer] = [:]
     private var pendingHeightUpdate = false
     private var heightRetry: DispatchWorkItem?
+    private var reconcileInFlight = false
+    private var pendingReconcile = false
+    private var workspaceObservers: [NSObjectProtocol] = []
+    private var fileWatchers: [UUID: FileWatcher] = [:]
+    private var watchGenerations: [UUID: UUID] = [:]
+
+    private struct MissingFile {
+        let key: ShelfKey
+        let id: UUID
+        let name: String
+        let originalPath: String?
+        let relativePath: String?
+        /// The watcher generation when the path was checked, if a watcher was
+        /// active. A mismatch means the file moved while the check was in
+        /// flight, so the result is stale.
+        let generation: UUID?
+    }
+
+    private struct MovedFile {
+        let key: ShelfKey
+        let id: UUID
+        let generation: UUID
+        let watchedPath: String
+        let newPath: String
+    }
+
+    private struct DeferredWatchEvent {
+        let resolution: FileWatcher.Resolution
+        let itemID: UUID
+        let generation: UUID
+        let watchedPath: String
+    }
+
+    private var deferredWatchEvents: [DeferredWatchEvent] = []
 
     init() {
         for state in store.loadStates() {
@@ -29,11 +63,14 @@ final class ShelfManager {
         if store.loadFailed {
             // The state file was unreadable and has been moved aside. Every
             // item folder is therefore unreferenced, and pruning now would
-            // delete copies the user may still want. Keep them and let the
-            // next successful save take over.
+            // delete stored images and promised files the user may still want.
+            // Keep them and let the next successful save take over.
             NSLog("EdgeShelf: skipping the item cleanup after an unreadable shelves.json")
         } else {
-            let referenced = Set(states.values.flatMap { $0.items.map(\.id) })
+            migrateLegacyCopies()
+            let referenced = Set(states.values.flatMap { state in
+                state.items.compactMap { $0.relativePath == nil ? nil : $0.id }
+            })
             store.cleanUnreferencedFolders(referenced: referenced)
         }
 
@@ -44,6 +81,361 @@ final class ShelfManager {
         }
 
         rebuildWindows()
+        ensureFileWatchers()
+        observeWorkspaceEvents()
+        reconcileFileItems()
+    }
+
+    deinit {
+        for token in workspaceObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(token)
+        }
+        for watcher in fileWatchers.values {
+            watcher.cancel()
+        }
+    }
+
+    // MARK: - Legacy storage
+
+    /// Older versions copied everything into Items/. Where the original is
+    /// still there, that copy is redundant: drop the local path and keep a
+    /// plain reference, and the launch cleanup reclaims the disk space. A copy
+    /// whose original is already gone is the only remaining content, so it
+    /// stays available on the shelf.
+    private func migrateLegacyCopies() {
+        var changed = false
+        for key in Array(states.keys) {
+            guard var state = states[key] else { continue }
+            for index in state.items.indices {
+                guard state.items[index].relativePath != nil,
+                      let original = state.items[index].originalPath,
+                      FileManager.default.fileExists(atPath: original) else { continue }
+                state.items[index].relativePath = nil
+                changed = true
+            }
+            states[key] = state
+        }
+        if changed {
+            NSLog("EdgeShelf: switched legacy item copies to direct references")
+            save()
+        }
+    }
+
+    // MARK: - Source file changes
+
+    /// Watchers do the work while the app is running. There is no periodic
+    /// timer: a one-off reconciliation runs at launch, after sleep, and when a
+    /// volume is mounted or unmounted. That catches anything that happened
+    /// while no watcher was alive, without polling the file system.
+    private func observeWorkspaceEvents() {
+        let center = NSWorkspace.shared.notificationCenter
+        let names: [Notification.Name] = [
+            NSWorkspace.didWakeNotification,
+            NSWorkspace.didMountNotification,
+            NSWorkspace.didUnmountNotification,
+        ]
+        for name in names {
+            let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.reconcileFileItems()
+            }
+            workspaceObservers.append(token)
+        }
+    }
+
+    private func reconcileFileItems() {
+        guard !isDragging else {
+            pendingReconcile = true
+            return
+        }
+        guard !reconcileInFlight else {
+            pendingReconcile = true
+            return
+        }
+
+        var candidates: [(key: ShelfKey, item: ShelfItem)] = []
+        for (key, state) in states {
+            for item in state.items
+            where item.isFileBacked && !pendingItems.contains(item.id) {
+                candidates.append((key, item))
+            }
+        }
+        guard !candidates.isEmpty else {
+            ensureFileWatchers()
+            return
+        }
+        reconcileInFlight = true
+        let watchers = fileWatchers
+        let generations = watchGenerations
+
+        ioQueue.async { [weak self] in
+            guard let self else { return }
+            var missing: [MissingFile] = []
+            var moved: [MovedFile] = []
+            var unmounted: [UUID] = []
+
+            for candidate in candidates where !self.store.isReachable(candidate.item) {
+                // An unmounted drive is not a deleted file. Keep the item so a
+                // reconnected volume brings it back.
+                if let original = candidate.item.originalPath,
+                   Self.isOnUnmountedVolume(original) {
+                    unmounted.append(candidate.item.id)
+                    continue
+                }
+
+                // An ancestor folder can be renamed without the file's own
+                // vnode receiving an event. The open descriptor can still
+                // tell us where the same inode lives now.
+                if let original = candidate.item.originalPath,
+                   let watcher = watchers[candidate.item.id],
+                   let generation = generations[candidate.item.id] {
+                    switch watcher.resolve() {
+                    case .moved(let newPath):
+                        moved.append(MovedFile(key: candidate.key,
+                                               id: candidate.item.id,
+                                               generation: generation,
+                                               watchedPath: original,
+                                               newPath: newPath))
+                        continue
+                    case .unchanged, .replaced:
+                        // The path reappeared; leave it alone.
+                        continue
+                    case .gone, .revoked:
+                        break
+                    }
+                }
+
+                missing.append(MissingFile(key: candidate.key,
+                                           id: candidate.item.id,
+                                           name: candidate.item.displayName,
+                                           originalPath: candidate.item.originalPath,
+                                           relativePath: candidate.item.relativePath,
+                                           generation: watchers[candidate.item.id] != nil
+                                               ? generations[candidate.item.id]
+                                               : nil))
+            }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.reconcileInFlight = false
+                self.applyMissingFileCheck(missing, moved: moved, unmounted: unmounted)
+                if self.pendingReconcile {
+                    self.pendingReconcile = false
+                    self.reconcileFileItems()
+                }
+            }
+        }
+    }
+
+    private func applyMissingFileCheck(_ missing: [MissingFile],
+                                       moved: [MovedFile],
+                                       unmounted: [UUID]) {
+        for entry in moved {
+            guard watchGenerations[entry.id] == entry.generation,
+                  let (key, item) = location(of: entry.id),
+                  item.originalPath == entry.watchedPath else { continue }
+            followMove(item: item, to: entry.newPath, in: key)
+        }
+
+        // A dead watcher on an unmounted volume would otherwise stay in the
+        // table forever; dropping it lets `ensureFileWatchers` retry later.
+        for itemID in unmounted {
+            stopWatcher(for: itemID)
+        }
+        for entry in missing {
+            guard let item = states[entry.key]?.items.first(where: { $0.id == entry.id }),
+                  !pendingItems.contains(item.id),
+                  item.originalPath == entry.originalPath,
+                  item.relativePath == entry.relativePath,
+                  entry.generation == nil || watchGenerations[item.id] == entry.generation else { continue }
+            NSLog("EdgeShelf: removing \(entry.name) because its file is gone")
+            remove(item: item, from: entry.key)
+        }
+        ensureFileWatchers()
+    }
+
+    // MARK: - File watchers
+
+    private func ensureFileWatchers() {
+        var wanted: [UUID: String] = [:]
+        for state in states.values {
+            for item in state.items where item.isFileBacked && item.relativePath == nil {
+                guard let path = item.originalPath else { continue }
+                wanted[item.id] = path
+            }
+        }
+
+        for itemID in Array(fileWatchers.keys) {
+            guard let watcher = fileWatchers[itemID] else { continue }
+            if wanted[itemID] != watcher.path {
+                stopWatcher(for: itemID)
+            }
+        }
+        for itemID in Array(watchGenerations.keys) where wanted[itemID] == nil {
+            stopWatcher(for: itemID)
+        }
+
+        for state in states.values {
+            for item in state.items where wanted[item.id] != nil {
+                guard fileWatchers[item.id] == nil,
+                      watchGenerations[item.id] == nil else { continue }
+                startWatcher(for: item)
+            }
+        }
+    }
+
+    private func startWatcher(for item: ShelfItem) {
+        guard item.isFileBacked, item.relativePath == nil,
+              let path = item.originalPath else { return }
+        if let existing = fileWatchers[item.id], existing.path == path { return }
+
+        let itemID = item.id
+        let generation = UUID()
+        watchGenerations[itemID] = generation
+
+        ioQueue.async { [weak self] in
+            guard let self else { return }
+            guard let watcher = FileWatcher(path: path, queue: self.ioQueue, handler: { [weak self] resolution in
+                self?.deliverWatchResolution(resolution,
+                                             itemID: itemID,
+                                             generation: generation,
+                                             watchedPath: path)
+            }) else {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.watchGenerations[itemID] == generation else { return }
+                    self.watchGenerations[itemID] = nil
+                }
+                return
+            }
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.watchGenerations[itemID] == generation else {
+                    watcher.cancel()
+                    return
+                }
+                self.fileWatchers[itemID] = watcher
+            }
+        }
+    }
+
+    private func stopWatcher(for itemID: UUID) {
+        watchGenerations[itemID] = nil
+        fileWatchers.removeValue(forKey: itemID)?.cancel()
+    }
+
+    private func deliverWatchResolution(_ resolution: FileWatcher.Resolution,
+                                        itemID: UUID,
+                                        generation: UUID,
+                                        watchedPath: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            // Rebuilding the shelf inside a drag is exactly what this app
+            // avoids; hold the event until the drag ends.
+            guard !self.isDragging else {
+                self.deferredWatchEvents.append(DeferredWatchEvent(resolution: resolution,
+                                                                   itemID: itemID,
+                                                                   generation: generation,
+                                                                   watchedPath: watchedPath))
+                return
+            }
+            self.applyWatchResolution(resolution,
+                                      itemID: itemID,
+                                      generation: generation,
+                                      watchedPath: watchedPath)
+        }
+    }
+
+    private func applyWatchResolution(_ resolution: FileWatcher.Resolution,
+                                      itemID: UUID,
+                                      generation: UUID,
+                                      watchedPath: String) {
+        guard watchGenerations[itemID] == generation,
+              let (key, item) = location(of: itemID),
+              item.originalPath == watchedPath else { return }
+
+        switch resolution {
+        case .unchanged:
+            break
+        case .replaced:
+            refreshReplacedFile(item: item, in: key)
+            rearmWatcher(for: itemID)
+        case .moved(let newPath):
+            followMove(item: item, to: newPath, in: key)
+        case .gone:
+            remove(item: item, from: key)
+        case .revoked:
+            // The volume is unavailable, not deleted. Keep the item and let
+            // the next launch/wake/mount reconciliation retry the watcher.
+            stopWatcher(for: itemID)
+        }
+    }
+
+    private func flushDeferredWatchEvents() {
+        guard !isDragging, !deferredWatchEvents.isEmpty else { return }
+        let events = deferredWatchEvents
+        deferredWatchEvents.removeAll()
+        for event in events {
+            applyWatchResolution(event.resolution,
+                                 itemID: event.itemID,
+                                 generation: event.generation,
+                                 watchedPath: event.watchedPath)
+        }
+    }
+
+    private func rearmWatcher(for itemID: UUID) {
+        guard let (_, item) = location(of: itemID) else { return }
+        stopWatcher(for: itemID)
+        startWatcher(for: item)
+    }
+
+    private func refreshReplacedFile(item: ShelfItem, in key: ShelfKey) {
+        guard let path = item.originalPath else { return }
+        let url = URL(fileURLWithPath: path)
+        let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+        let isDirectory = values?.isDirectory ?? (item.kind == .folder)
+        let isImage = !isDirectory
+            && UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
+        updateItem(id: item.id, in: key) {
+            $0.byteSize = values?.fileSize.map(Int64.init)
+            $0.kind = isDirectory ? .folder : (isImage ? .image : .file)
+        }
+        windows[key]?.refreshItem(id: item.id, reloadThumbnail: true)
+    }
+
+    private func followMove(item: ShelfItem, to path: String, in key: ShelfKey) {
+        let url = URL(fileURLWithPath: path)
+        let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+        let isDirectory = values?.isDirectory ?? (item.kind == .folder)
+        let isImage = !isDirectory
+            && UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
+
+        updateItem(id: item.id, in: key) {
+            $0.originalPath = path
+            $0.displayName = url.lastPathComponent
+            $0.byteSize = values?.fileSize.map(Int64.init)
+            $0.kind = isDirectory ? .folder : (isImage ? .image : .file)
+        }
+        stopWatcher(for: item.id)
+        guard let moved = states[key]?.items.first(where: { $0.id == item.id }) else { return }
+        startWatcher(for: moved)
+        windows[key]?.refreshItem(id: item.id)
+    }
+
+    private func location(of itemID: UUID) -> (ShelfKey, ShelfItem)? {
+        for (key, state) in states {
+            if let item = state.items.first(where: { $0.id == itemID }) {
+                return (key, item)
+            }
+        }
+        return nil
+    }
+
+    /// True when the path sits on a volume that is currently not mounted.
+    /// Without this, unplugging a drive would quietly empty its shelf.
+    private static func isOnUnmountedVolume(_ path: String) -> Bool {
+        let parts = (path as NSString).pathComponents
+        guard parts.count > 2, parts[1] == "Volumes" || parts[1] == "Network" else {
+            return false
+        }
+        return !FileManager.default.fileExists(atPath: "/\(parts[1])/\(parts[2])")
     }
 
     // MARK: - State access
@@ -54,17 +446,11 @@ final class ShelfManager {
 
     /// The URL the user should get when opening, revealing, copying, or
     /// dragging an item out. Preference order:
-    ///   1. the original file, if it still exists (so dragging back to the
-    ///      same folder is a no-op instead of a "replace?" prompt),
-    ///   2. the shelf's own copy, if the original has moved or been deleted.
+    ///   1. the original file, when the item references one and it still exists,
+    ///   2. the store's own file, for pasted images, promised files, and
+    ///      legacy copies whose original is gone.
     func userFacingURL(for item: ShelfItem) -> URL? {
-        if let path = item.originalPath {
-            let url = URL(fileURLWithPath: path)
-            if FileManager.default.fileExists(atPath: url.path) {
-                return url
-            }
-        }
-        return store.absoluteURL(for: item)
+        store.absoluteURL(for: item)
     }
 
     func isPending(_ id: UUID) -> Bool {
@@ -196,6 +582,11 @@ final class ShelfManager {
 
         if needsRebuild {
             rebuildWindows()
+        }
+        flushDeferredWatchEvents()
+        if pendingReconcile {
+            pendingReconcile = false
+            reconcileFileItems()
         }
         updateHeights(animated: true)
     }
@@ -370,9 +761,7 @@ final class ShelfManager {
                                          originalPath: url.path,
                                          byteSize: size)
                     state.items.append(item)
-                    pendingItems.insert(item.id)
                     added = true
-                    copyInBackground(item: item, from: url, into: key)
                 } else {
                     let string = url.absoluteString
                     guard !state.items.contains(where: { $0.urlString == string }) else { continue }
@@ -419,6 +808,7 @@ final class ShelfManager {
 
         states[key] = state
         save()
+        ensureFileWatchers()
 
         // Never rebuild the stack or create thumbnails inside the drag
         // destination callback. Let the drop finish first.
@@ -431,28 +821,13 @@ final class ShelfManager {
         return true
     }
 
-    private func copyInBackground(item: ShelfItem, from url: URL, into key: ShelfKey) {
-        copyQueue.async { [weak self] in
-            guard let self else { return }
-            let relative = self.store.copyFile(at: url, itemID: item.id)
-            DispatchQueue.main.async {
-                self.pendingItems.remove(item.id)
-                if let relative {
-                    self.updateItem(id: item.id, in: key) { $0.relativePath = relative }
-                }
-                self.windows[key]?.refreshItem(id: item.id)
-                self.save()
-            }
-        }
-    }
-
     /// Writes bitmap bytes that arrived on the pasteboard.
     ///
     /// The bytes are stored exactly as they arrived. Decoding a photo and
     /// re-encoding it as PNG costs about a second for 6 MP, changes the file
     /// the user gets back, and used to run inside the drop callback.
     private func storePayload(item: ShelfItem, data: Data, fileExtension: String, into key: ShelfKey) {
-        copyQueue.async { [weak self] in
+        ioQueue.async { [weak self] in
             guard let self else { return }
             let relative = self.store.writeData(data, itemID: item.id, fileExtension: fileExtension)
             DispatchQueue.main.async {
@@ -519,17 +894,16 @@ final class ShelfManager {
         receiver.receivePromisedFiles(atDestination: destination, options: [:], operationQueue: .main) { [weak self] url, error in
             guard let self else { return }
             self.pendingItems.remove(item.id)
-            if error == nil {
-                let relative = "\(id.uuidString)/\(url.lastPathComponent)"
-                self.updateItem(id: item.id, in: key) {
-                    $0.relativePath = relative
-                    $0.displayName = url.lastPathComponent
-                }
-            } else {
+            guard error == nil else {
                 NSLog("EdgeShelf: file promise failed: \(String(describing: error))")
-                self.updateItem(id: item.id, in: key) {
-                    $0.displayName = L10n.unavailableFile
-                }
+                self.remove(item: item, from: key)
+                NSSound.beep()
+                return
+            }
+            let relative = "\(id.uuidString)/\(url.lastPathComponent)"
+            self.updateItem(id: item.id, in: key) {
+                $0.relativePath = relative
+                $0.displayName = url.lastPathComponent
             }
             self.windows[key]?.refreshItem(id: item.id)
             self.save()
@@ -544,6 +918,7 @@ final class ShelfManager {
         state.items.remove(at: index)
         states[key] = state
         pendingItems.remove(item.id)
+        stopWatcher(for: item.id)
         if deleteFiles {
             store.deleteFiles(for: item.id)
         }
@@ -562,8 +937,8 @@ final class ShelfManager {
 
     func didDragOut(item: ShelfItem, from key: ShelfKey) {
         guard prefs.removeAfterDragOut else { return }
-        // Give the destination time to copy the file before the item leaves
-        // the shelf. The files themselves are cleaned up on next launch.
+        // Give the destination time to start reading the original file before
+        // the card leaves the shelf. Removing a card never touches user files.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             self?.remove(item: item, from: key, deleteFiles: false)
         }
@@ -572,6 +947,7 @@ final class ShelfManager {
     func closeShelf(_ key: ShelfKey) {
         guard let state = states[key] else { return }
         for item in state.items {
+            stopWatcher(for: item.id)
             store.deleteFiles(for: item.id)
         }
         states[key] = ShelfState(key: key)
@@ -694,12 +1070,11 @@ final class ShelfManager {
                                  displayName: fileURL.lastPathComponent,
                                  originalPath: fileURL.path)
             state.items.append(item)
-            pendingItems.insert(item.id)
-            copyInBackground(item: item, from: fileURL, into: key)
         }
 
         states[key] = state
         save()
+        ensureFileWatchers()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
             self?.windows[key]?.refresh()

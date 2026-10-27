@@ -7,8 +7,8 @@ import UniformTypeIdentifiers
 ///
 /// 1. Promised files: resolving one synchronously hangs the drop.
 /// 2. File URLs: a Finder drag has to stay a file, because the item keeps its
-///    original path and dragging it back is then a no-op instead of a
-///    "replace?" prompt.
+///    original path instead of copying it, and dragging it back is then a
+///    no-op instead of a "replace?" prompt.
 /// 3. Bitmap data. A browser publishes an image's alt text as `.string`, the
 ///    `<img>` tag as `.html`, and often its address as a URL next to the
 ///    bitmap, so the bitmap has to be matched before those or the card ends

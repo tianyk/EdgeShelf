@@ -114,7 +114,7 @@ final class ShelfWindowController: NSWindowController {
         shelfView.refresh()
     }
 
-    func refreshItem(id: UUID) {
-        shelfView.refreshItem(id: id)
+    func refreshItem(id: UUID, reloadThumbnail: Bool = false) {
+        shelfView.refreshItem(id: id, reloadThumbnail: reloadThumbnail)
     }
 }

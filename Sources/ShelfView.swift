@@ -305,11 +305,12 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
 
     // MARK: Appearance
 
-    func update(with item: ShelfItem) {
-        let gainedLocalCopy = self.item.relativePath == nil && item.relativePath != nil
+    func update(with item: ShelfItem, reloadThumbnail: Bool = false) {
+        let gainedStoredFile = self.item.relativePath == nil && item.relativePath != nil
+        let pathChanged = self.item.originalPath != item.originalPath
         self.item = item
         updateLabels()
-        if gainedLocalCopy {
+        if gainedStoredFile || pathChanged || reloadThumbnail {
             ThumbnailLoader.invalidate(itemID: item.id)
             loadThumbnail()
         }
@@ -815,10 +816,10 @@ final class ShelfView: NSView {
         needsLayout = true
     }
 
-    func refreshItem(id: UUID) {
+    func refreshItem(id: UUID, reloadThumbnail: Bool = false) {
         guard let manager,
               let item = manager.items(for: key).first(where: { $0.id == id }) else { return }
-        itemViews[id]?.update(with: item)
+        itemViews[id]?.update(with: item, reloadThumbnail: reloadThumbnail)
     }
 
     /// Used by `--debug-hittest`; verifies the item cards are actually

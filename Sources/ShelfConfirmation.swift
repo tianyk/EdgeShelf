@@ -2,9 +2,10 @@ import AppKit
 
 /// The confirmation dialogs shown before a shelf is emptied.
 ///
-/// Clearing deletes the copies EdgeShelf made and cannot be undone for text,
-/// links and screenshots, so every entry point to it goes through here, and
-/// every entry point asks the same question with the same wording.
+/// Clearing removes items and deletes only files EdgeShelf itself stored
+/// (pasted images, promised files, and legacy copies). User files are never
+/// touched. It cannot be undone for text, links and images, so every entry
+/// point asks the same question with the same wording.
 enum ShelfConfirmation {
 
     /// Asks before emptying a single shelf.
