@@ -31,7 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             || CommandLine.arguments.contains("--snapshot-collapsed")
             || CommandLine.arguments.contains("--debug-state")
             || CommandLine.arguments.contains("--debug-hover")
-            || CommandLine.arguments.contains("--debug-drag") {
+            || CommandLine.arguments.contains("--debug-drag")
+            || CommandLine.arguments.contains("--debug-hittest") {
             manager.addDemoItems()
         }
 
@@ -83,6 +84,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         NSApp.terminate(nil)
                     }
                 }
+            }
+        }
+
+        if CommandLine.arguments.contains("--debug-hittest") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                guard let self,
+                      let controller = self.manager.windows.first(where: { $0.key.edge == .left })?.value else {
+                    NSApp.terminate(nil)
+                    return
+                }
+                print(controller.shelfView.debugHitTestReport())
+                NSApp.terminate(nil)
             }
         }
 

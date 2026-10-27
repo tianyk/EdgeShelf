@@ -289,8 +289,13 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        guard bounds.contains(point) else { return nil }
-        if !closeButton.isHidden, closeButton.frame.contains(point) {
+        // AppKit passes the point in the *superview's* coordinate system.
+        // Checking `bounds` here made every card whose frame origin was not
+        // (0, 0) fall through to the scroll view, so only the first/last card
+        // appeared to support clicks.
+        guard frame.contains(point) else { return nil }
+        let localPoint = convert(point, from: superview)
+        if !closeButton.isHidden, closeButton.frame.contains(localPoint) {
             return closeButton
         }
         return self
@@ -810,6 +815,20 @@ final class ShelfView: NSView {
         guard let manager,
               let item = manager.items(for: key).first(where: { $0.id == id }) else { return }
         itemViews[id]?.update(with: item)
+    }
+
+    /// Used by `--debug-hittest`; verifies the item cards are actually
+    /// reachable through AppKit's superview-coordinate hit testing.
+    func debugHitTestReport() -> String {
+        layoutSubtreeIfNeeded()
+        var lines: [String] = []
+        for view in itemViews.values {
+            let center = NSPoint(x: view.bounds.midX, y: view.bounds.midY)
+            let point = view.convert(center, to: view.superview)
+            let hit = view.hitTest(point)
+            lines.append("\(view.item.displayName): frame=\(view.frame) hit=\(hit === view)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     @objc private func closeShelf() {
