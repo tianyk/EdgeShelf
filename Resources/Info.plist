@@ -8,6 +8,8 @@
 	<string>EdgeShelf</string>
 	<key>CFBundleExecutable</key>
 	<string>EdgeShelf</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.doge.edgeshelf</string>
 	<key>CFBundleLocalizations</key>

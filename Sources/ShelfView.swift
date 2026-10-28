@@ -641,7 +641,7 @@ final class ShelfView: NSView {
         background.autoresizingMask = [.width, .height]
         contentContainer.addSubview(background)
 
-        headerIcon.image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: nil)
+        headerIcon.image = AppIcons.status
         headerIcon.contentTintColor = .secondaryLabelColor
         headerIcon.imageScaling = .scaleProportionallyUpOrDown
         headerIcon.setAccessibilityElement(false)

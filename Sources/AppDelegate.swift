@@ -157,10 +157,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem.button {
-            let image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: L10n.appName)
-                ?? NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: L10n.appName)
-            image?.isTemplate = true
-            button.image = image
+            button.image = AppIcons.status
+            button.setAccessibilityLabel(L10n.appName)
         }
 
         rebuildStatusMenu()
