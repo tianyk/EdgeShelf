@@ -28,6 +28,11 @@ private enum SelfTest {
         state.items.append(ShelfItem(kind: .url,
                                      displayName: "example.com",
                                      urlString: "https://example.com/"))
+        let groupID = UUID()
+        state.items.append(ShelfItem(kind: .file,
+                                     displayName: "grouped.txt",
+                                     groupID: groupID,
+                                     originalPath: "/tmp/grouped.txt"))
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -37,9 +42,10 @@ private enum SelfTest {
         do {
             let data = try encoder.encode(state)
             let decoded = try decoder.decode(ShelfState.self, from: data)
-            precondition(decoded.items.count == 2)
+            precondition(decoded.items.count == 3)
             precondition(decoded.items[0].text == "hello world")
             precondition(decoded.items[1].urlString == "https://example.com/")
+            precondition(decoded.items[2].groupID == groupID)
             precondition(decoded.key.edge == .left)
         } catch {
             print("EdgeShelf self-test: FAILED — \(error)")
@@ -113,8 +119,59 @@ private enum SelfTest {
         // make the caller believe the user has no items.
         runStoreRecoveryTests()
 
+        // Group rows: collapsed, expanded, and the single-member fallback.
+        runGroupingTests()
+
         print("EdgeShelf self-test: OK")
         exit(0)
+    }
+
+    private static func runGroupingTests() {
+        let groupID = UUID()
+        let first = ShelfItem(kind: .file,
+                              displayName: "one.txt",
+                              groupID: groupID,
+                              originalPath: "/tmp/one.txt")
+        let second = ShelfItem(kind: .file,
+                               displayName: "two.txt",
+                               groupID: groupID,
+                               originalPath: "/tmp/two.txt")
+        let third = ShelfItem(kind: .file,
+                              displayName: "three.txt",
+                              groupID: groupID,
+                              originalPath: "/tmp/three.txt")
+        let single = ShelfItem(kind: .text, displayName: "note", text: "note")
+        let items = [first, single, second, third]
+
+        let collapsed = ShelfManager.buildRows(items: items, expandedGroups: [])
+        if collapsed.count != 2 {
+            failSelfTest("a collapsed group must occupy exactly one row")
+        }
+        guard case .group(let collapsedID, let collapsedMembers) = collapsed[0] else {
+            failSelfTest("the first row must be the group")
+        }
+        if collapsedID != groupID || collapsedMembers.count != 3 {
+            failSelfTest("the group row must contain all three members")
+        }
+
+        let expanded = ShelfManager.buildRows(items: items, expandedGroups: [groupID])
+        if expanded.count != 5 {
+            failSelfTest("an expanded group must show its three members")
+        }
+        guard case .member(_, let memberGroupID) = expanded[1] else {
+            failSelfTest("the row after the group header must be a member")
+        }
+        if memberGroupID != groupID {
+            failSelfTest("the member row must point back at its group")
+        }
+
+        let loneRows = ShelfManager.buildRows(items: [first], expandedGroups: [groupID])
+        if loneRows.count != 1 {
+            failSelfTest("a group with one surviving member must collapse")
+        }
+        guard case .item = loneRows[0] else {
+            failSelfTest("a single-member group must render as a normal item")
+        }
     }
 
     private static func runStoreRecoveryTests() {

@@ -26,8 +26,9 @@ final class Store {
     /// recreated on every launch.
     private static let ephemeralFlags = [
         "--demo", "--snapshot", "--snapshot-many", "--snapshot-collapsed",
-        "--snapshot-empty", "--debug-state", "--debug-hover", "--debug-drag",
-        "--self-test",
+        "--snapshot-empty", "--snapshot-groups", "--expand-groups",
+        "--debug-state", "--debug-hover", "--debug-drag",
+        "--debug-ingest-group", "--self-test",
     ]
 
     static let isEphemeral = CommandLine.arguments.contains { ephemeralFlags.contains($0) }

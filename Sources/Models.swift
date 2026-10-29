@@ -52,6 +52,10 @@ struct ShelfItem: Codable, Identifiable, Equatable {
     var id: UUID
     var kind: ItemKind
     var displayName: String
+    /// Groups items that arrived in the same multi-file drop. The group is a
+    /// presentation detail: every member is still a normal file-backed item,
+    /// with its own watcher, so deleting one file only removes that card.
+    var groupID: UUID?
     /// Path relative to the store's Items directory. Only used for content
     /// EdgeShelf owns: pasted images, promised files, and legacy copies.
     var relativePath: String?
@@ -65,6 +69,7 @@ struct ShelfItem: Codable, Identifiable, Equatable {
 
     init(kind: ItemKind,
          displayName: String,
+         groupID: UUID? = nil,
          relativePath: String? = nil,
          originalPath: String? = nil,
          text: String? = nil,
@@ -73,6 +78,7 @@ struct ShelfItem: Codable, Identifiable, Equatable {
         self.id = UUID()
         self.kind = kind
         self.displayName = displayName
+        self.groupID = groupID
         self.relativePath = relativePath
         self.originalPath = originalPath
         self.text = text
@@ -107,6 +113,14 @@ struct ShelfItem: Codable, Identifiable, Equatable {
             return L10n.file
         }
     }
+}
+
+/// One row in the shelf list. A group is rendered as one summary card; when
+/// it is expanded, its members follow as ordinary cards.
+enum ShelfRow {
+    case item(ShelfItem)
+    case group(id: UUID, items: [ShelfItem])
+    case member(ShelfItem, groupID: UUID)
 }
 
 // MARK: - Shelf identity and state

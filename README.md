@@ -25,6 +25,10 @@ diagnosis.
 - Each file item is watched with a kqueue vnode watcher: deleting the original
   (including moving it to the Trash) removes the card immediately, while a
   rename or move within the volume updates the card’s path and name.
+- Files dropped together become one group card by default. Click it to expand
+  the members, or drag the group out to move all of its files in one gesture.
+  Its menu offers Open All, Show All in Finder, Copy All, Split into Separate
+  Items, and Remove Group. The grouping can be turned off in Preferences.
 - Pasted images and files received through a file promise are stored in
   `~/Library/Application Support/EdgeShelf/Items`; everything else stays in
   place.
@@ -114,6 +118,10 @@ with `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`,
 - Move away and the shelf collapses to the edge tab immediately.
 - Hover the edge tab to expand the shelf again.
 - Right-click an item for Open / Show in Finder / Copy / Remove.
+- Drop several files at once; they become one group card. Click the card to
+  expand its members, or drag the card out to move all of them in one gesture.
+  Right-click the group for Open All, Show All in Finder, Copy All, Split into
+  Separate Items, and Remove Group. Turn merging off in Preferences.
 - Drag an item out to Finder, Mail, Slack, etc. The drag uses the original
   path and is a copy operation, so the source file stays where it is.
 - Menu bar → Preferences for edges, behaviour, and language.
@@ -133,6 +141,10 @@ open build/EdgeShelf.app --args --demo
 
 # Render the shelf to /tmp/edgeshelf-snapshot.png without screen capture
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot
+
+# Render a collapsed and an expanded group card
+build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups
+build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups --expand-groups
 
 # Force a language for a screenshot or manual check
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang en --snapshot --snapshot-many
@@ -156,13 +168,17 @@ they never touch the shelves you actually use.
 9. Change the language in Preferences; the shelf and preferences update
    immediately.
 10. Quit and relaunch; shelves, items, and the language choice come back.
+11. Drag several files in at once; one group card appears. Drag the group card
+    out and all files arrive together. Click it to expand and drag one member
+    out on its own. Right-click it for the group actions.
 
 ## Known limitations
 
 - One shelf per edge per display. Dropshelf allows several shelves stacked
   along the same edge.
 - Top and bottom edges are not implemented yet.
-- No Quick Look panel, “Open With” submenu, or multi-select yet.
+- No Quick Look panel or “Open With” submenu yet; multi-select across separate
+  records is not implemented, but a group’s files can be dragged out together.
 - Renames and moves are followed while the app is running and the file stays
   on the same volume. A move made while the app is not running, or a move to
   another volume, is treated as a deletion. Items on an unmounted volume are

@@ -29,11 +29,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             || CommandLine.arguments.contains("--snapshot")
             || CommandLine.arguments.contains("--snapshot-many")
             || CommandLine.arguments.contains("--snapshot-collapsed")
+            || CommandLine.arguments.contains("--snapshot-groups")
             || CommandLine.arguments.contains("--debug-state")
             || CommandLine.arguments.contains("--debug-hover")
             || CommandLine.arguments.contains("--debug-drag")
             || CommandLine.arguments.contains("--debug-hittest") {
             manager.addDemoItems()
+        }
+
+        if CommandLine.arguments.contains("--expand-groups") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                guard let self else { return }
+                for key in self.manager.windows.keys {
+                    if let groupID = self.manager.items(for: key).first(where: { $0.groupID != nil })?.groupID {
+                        self.manager.toggleGroup(groupID, in: key)
+                        break
+                    }
+                }
+            }
         }
 
         if CommandLine.arguments.contains("--prefs") {
@@ -42,7 +55,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        if CommandLine.arguments.contains("--snapshot") || CommandLine.arguments.contains("--snapshot-many") {
+        if CommandLine.arguments.contains("--snapshot")
+            || CommandLine.arguments.contains("--snapshot-many")
+            || CommandLine.arguments.contains("--snapshot-groups") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 self?.writeSnapshot()
             }
@@ -70,6 +85,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 guard let self else { return }
                 print(self.manager.debugMenus())
+                NSApp.terminate(nil)
+            }
+        }
+
+        if CommandLine.arguments.contains("--debug-ingest-group") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self,
+                      let key = self.manager.windows.keys.first(where: { $0.edge == .left }) else {
+                    NSApp.terminate(nil)
+                    return
+                }
+                let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+                    .appendingPathComponent("EdgeShelf-IngestGroup-\(UUID().uuidString)", isDirectory: true)
+                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let urls = (0..<3).map { index -> URL in
+                    let url = directory.appendingPathComponent("file-\(index).txt")
+                    try? "sample".write(to: url, atomically: true, encoding: .utf8)
+                    return url
+                }
+                let pasteboard = NSPasteboard(name: NSPasteboard.Name("com.doge.edgeshelf.ingestgroup"))
+                pasteboard.clearContents()
+                pasteboard.writeObjects(urls.map { $0 as NSURL })
+                let accepted = self.manager.ingest(pasteboard: pasteboard, into: key)
+                let rows = self.manager.rows(for: key)
+                var groups = 0
+                var members = 0
+                for row in rows {
+                    switch row {
+                    case .group: groups += 1
+                    case .member: members += 1
+                    case .item: break
+                    }
+                }
+                print("ingest=\(accepted) rows=\(rows.count) groups=\(groups) members=\(members)")
                 NSApp.terminate(nil)
             }
         }

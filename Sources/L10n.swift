@@ -115,10 +115,23 @@ enum L10n {
 
     // Item actions.
     static var open: String { string("open") }
+    static var openAll: String { string("openAll") }
     static var showInFinder: String { string("showInFinder") }
+    static var showAllInFinder: String { string("showAllInFinder") }
     static var copy: String { string("copy") }
+    static var copyAll: String { string("copyAll") }
     static var remove: String { string("remove") }
     static var removeFromShelf: String { string("removeFromShelf") }
+    static var expandGroup: String { string("expandGroup") }
+    static var collapseGroup: String { string("collapseGroup") }
+    static var ungroup: String { string("ungroup") }
+    static var removeGroup: String { string("removeGroup") }
+    static var groupHelp: String { string("groupHelp") }
+
+    /// “5 items” — the count is always at least two for a group.
+    static func groupItems(_ count: Int) -> String {
+        String(format: string("groupItems"), count)
+    }
 
     // Shelf chrome.
     static var clearShelf: String { string("clearShelf") }
@@ -141,6 +154,7 @@ enum L10n {
     static var enableRight: String { string("enableRight") }
     static var removeAfterDragOut: String { string("removeAfterDragOut") }
     static var closeWhenEmpty: String { string("closeWhenEmpty") }
+    static var mergeDroppedFiles: String { string("mergeDroppedFiles") }
     static var showDataFolder: String { string("showDataFolder") }
     static var closeAllShelves: String { string("closeAllShelves") }
     static var removeAllTitle: String { string("removeAllTitle") }
@@ -192,10 +206,19 @@ enum L10n {
         "text": "Text",
         "link": "Link",
         "open": "Open",
+        "openAll": "Open All",
         "showInFinder": "Show in Finder",
+        "showAllInFinder": "Show All in Finder",
         "copy": "Copy",
+        "copyAll": "Copy All",
         "remove": "Remove",
         "removeFromShelf": "Remove from Shelf",
+        "expandGroup": "Expand",
+        "collapseGroup": "Collapse",
+        "ungroup": "Split into Separate Items",
+        "removeGroup": "Remove Group",
+        "groupHelp": "Click to expand or collapse; drag to move every item",
+        "groupItems": "%d items",
         "clearShelf": "Clear Shelf…",
         "clearAllShelves": "Clear All Shelves…",
         "clearShelfTitle": "Clear this shelf?",
@@ -212,6 +235,7 @@ enum L10n {
         "enableRight": "Enable the right screen edge",
         "removeAfterDragOut": "Remove items after dragging them out",
         "closeWhenEmpty": "Close a shelf when its last item is removed",
+        "mergeDroppedFiles": "Merge files dropped together into one item",
         "showDataFolder": "Show Data Folder",
         "closeAllShelves": "Close All Shelves",
         "removeAllTitle": "Remove all shelf items?",
@@ -255,10 +279,19 @@ enum L10n {
         "text": "文本",
         "link": "链接",
         "open": "打开",
+        "openAll": "全部打开",
         "showInFinder": "在访达中显示",
+        "showAllInFinder": "在访达中显示全部",
         "copy": "拷贝",
+        "copyAll": "拷贝全部",
         "remove": "移除",
         "removeFromShelf": "从搁板移除",
+        "expandGroup": "展开",
+        "collapseGroup": "收起",
+        "ungroup": "拆分为单独项目",
+        "removeGroup": "移除这一组",
+        "groupHelp": "点击展开或收起；拖动可移出全部项目",
+        "groupItems": "%d 个项目",
         "clearShelf": "清空搁板…",
         "clearAllShelves": "清空所有搁板…",
         "clearShelfTitle": "清空这个搁板？",
@@ -275,6 +308,7 @@ enum L10n {
         "enableRight": "启用屏幕右边缘",
         "removeAfterDragOut": "拖出后移除项目",
         "closeWhenEmpty": "移除最后一个项目后关闭搁板",
+        "mergeDroppedFiles": "把同一次拖入的多个文件合并为一项",
         "showDataFolder": "显示数据文件夹",
         "closeAllShelves": "关闭所有搁板",
         "removeAllTitle": "移除所有搁板项目？",
@@ -318,10 +352,19 @@ enum L10n {
         "text": "Texte",
         "link": "Lien",
         "open": "Ouvrir",
+        "openAll": "Tout ouvrir",
         "showInFinder": "Afficher dans le Finder",
+        "showAllInFinder": "Tout afficher dans le Finder",
         "copy": "Copier",
+        "copyAll": "Tout copier",
         "remove": "Retirer",
         "removeFromShelf": "Retirer de l’étagère",
+        "expandGroup": "Développer",
+        "collapseGroup": "Réduire",
+        "ungroup": "Séparer en éléments distincts",
+        "removeGroup": "Retirer le groupe",
+        "groupHelp": "Cliquez pour développer ou réduire ; faites glisser pour déplacer tous les éléments",
+        "groupItems": "%d éléments",
         "clearShelf": "Vider l’étagère…",
         "clearAllShelves": "Vider toutes les étagères…",
         "clearShelfTitle": "Vider cette étagère ?",
@@ -338,6 +381,7 @@ enum L10n {
         "enableRight": "Activer le bord droit de l’écran",
         "removeAfterDragOut": "Retirer les éléments après les avoir fait glisser",
         "closeWhenEmpty": "Fermer l’étagère quand son dernier élément est retiré",
+        "mergeDroppedFiles": "Regrouper les fichiers déposés ensemble en un seul élément",
         "showDataFolder": "Afficher le dossier de données",
         "closeAllShelves": "Fermer toutes les étagères",
         "removeAllTitle": "Retirer tous les éléments des étagères ?",
@@ -381,10 +425,19 @@ enum L10n {
         "text": "Texto",
         "link": "Enlace",
         "open": "Abrir",
+        "openAll": "Abrir todo",
         "showInFinder": "Mostrar en el Finder",
+        "showAllInFinder": "Mostrar todo en el Finder",
         "copy": "Copiar",
+        "copyAll": "Copiar todo",
         "remove": "Eliminar",
         "removeFromShelf": "Quitar del estante",
+        "expandGroup": "Expandir",
+        "collapseGroup": "Contraer",
+        "ungroup": "Separar en elementos individuales",
+        "removeGroup": "Quitar grupo",
+        "groupHelp": "Haz clic para expandir o contraer; arrastra para mover todos los elementos",
+        "groupItems": "%d elementos",
         "clearShelf": "Vaciar estante…",
         "clearAllShelves": "Vaciar todos los estantes…",
         "clearShelfTitle": "¿Vaciar este estante?",
@@ -401,6 +454,7 @@ enum L10n {
         "enableRight": "Activar el borde derecho de la pantalla",
         "removeAfterDragOut": "Quitar los elementos después de arrastrarlos",
         "closeWhenEmpty": "Cerrar el estante cuando se quite su último elemento",
+        "mergeDroppedFiles": "Combinar los archivos soltados juntos en un solo elemento",
         "showDataFolder": "Mostrar carpeta de datos",
         "closeAllShelves": "Cerrar todos los estantes",
         "removeAllTitle": "¿Quitar todos los elementos de los estantes?",
@@ -444,10 +498,19 @@ enum L10n {
         "text": "Текст",
         "link": "Ссылка",
         "open": "Открыть",
+        "openAll": "Открыть все",
         "showInFinder": "Показать в Finder",
+        "showAllInFinder": "Показать все в Finder",
         "copy": "Скопировать",
+        "copyAll": "Скопировать все",
         "remove": "Удалить",
         "removeFromShelf": "Убрать с полки",
+        "expandGroup": "Развернуть",
+        "collapseGroup": "Свернуть",
+        "ungroup": "Разделить на отдельные элементы",
+        "removeGroup": "Удалить группу",
+        "groupHelp": "Нажмите, чтобы развернуть или свернуть; перетащите, чтобы переместить все элементы",
+        "groupItems": "Элементов: %d",
         "clearShelf": "Очистить полку…",
         "clearAllShelves": "Очистить все полки…",
         "clearShelfTitle": "Очистить эту полку?",
@@ -464,6 +527,7 @@ enum L10n {
         "enableRight": "Включить правый край экрана",
         "removeAfterDragOut": "Удалять элементы после перетаскивания",
         "closeWhenEmpty": "Закрывать полку после удаления последнего элемента",
+        "mergeDroppedFiles": "Объединять файлы, перетащенные вместе, в один элемент",
         "showDataFolder": "Показать папку данных",
         "closeAllShelves": "Закрыть все полки",
         "removeAllTitle": "Удалить все элементы с полок?",
@@ -507,10 +571,19 @@ enum L10n {
         "text": "نص",
         "link": "رابط",
         "open": "فتح",
+        "openAll": "فتح الكل",
         "showInFinder": "إظهار في Finder",
+        "showAllInFinder": "إظهار الكل في Finder",
         "copy": "نسخ",
+        "copyAll": "نسخ الكل",
         "remove": "إزالة",
         "removeFromShelf": "إزالة من الرف",
+        "expandGroup": "توسيع",
+        "collapseGroup": "طي",
+        "ungroup": "فصل إلى عناصر منفردة",
+        "removeGroup": "إزالة المجموعة",
+        "groupHelp": "انقر للتوسيع أو الطي؛ اسحب لنقل كل العناصر",
+        "groupItems": "%d عناصر",
         "clearShelf": "إفراغ الرف…",
         "clearAllShelves": "إفراغ كل الرفوف…",
         "clearShelfTitle": "إفراغ هذا الرف؟",
@@ -527,6 +600,7 @@ enum L10n {
         "enableRight": "تفعيل الحافة اليمنى للشاشة",
         "removeAfterDragOut": "إزالة العناصر بعد سحبها للخارج",
         "closeWhenEmpty": "إغلاق الرف عند إزالة آخر عنصر",
+        "mergeDroppedFiles": "دمج الملفات التي تُسقط معًا في عنصر واحد",
         "showDataFolder": "إظهار مجلد البيانات",
         "closeAllShelves": "إغلاق كل الرفوف",
         "removeAllTitle": "إزالة كل عناصر الرفوف؟",

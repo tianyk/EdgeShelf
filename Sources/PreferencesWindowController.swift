@@ -11,6 +11,7 @@ final class PreferencesWindowController: NSWindowController {
     private let rightBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let removeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let closeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let mergeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let languageLabel = NSTextField(labelWithString: "")
     private let languagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let folderButton = NSButton(title: "", target: nil, action: nil)
@@ -66,11 +67,16 @@ final class PreferencesWindowController: NSWindowController {
         closeBox.action = #selector(behaviorChanged)
         content.addSubview(closeBox)
 
-        languageLabel.frame = NSRect(x: 24, y: 96, width: 80, height: 22)
+        mergeBox.frame = NSRect(x: 24, y: 110, width: 432, height: 22)
+        mergeBox.target = self
+        mergeBox.action = #selector(behaviorChanged)
+        content.addSubview(mergeBox)
+
+        languageLabel.frame = NSRect(x: 24, y: 82, width: 80, height: 22)
         languageLabel.font = .systemFont(ofSize: 13)
         content.addSubview(languageLabel)
 
-        languagePopup.frame = NSRect(x: 112, y: 90, width: 240, height: 28)
+        languagePopup.frame = NSRect(x: 112, y: 76, width: 240, height: 28)
         languagePopup.bezelStyle = .rounded
         languagePopup.target = self
         languagePopup.action = #selector(languageChanged)
@@ -98,6 +104,7 @@ final class PreferencesWindowController: NSWindowController {
         rightBox.title = L10n.enableRight
         removeBox.title = L10n.removeAfterDragOut
         closeBox.title = L10n.closeWhenEmpty
+        mergeBox.title = L10n.mergeDroppedFiles
         languageLabel.stringValue = L10n.languageLabel
         folderButton.title = L10n.showDataFolder
         resetButton.title = L10n.closeAllShelves
@@ -127,6 +134,7 @@ final class PreferencesWindowController: NSWindowController {
         rightBox.state = prefs.rightEnabled ? .on : .off
         removeBox.state = prefs.removeAfterDragOut ? .on : .off
         closeBox.state = prefs.closeWhenEmpty ? .on : .off
+        mergeBox.state = prefs.mergeDroppedFiles ? .on : .off
     }
 
     func show() {
@@ -147,6 +155,7 @@ final class PreferencesWindowController: NSWindowController {
     @objc private func behaviorChanged() {
         prefs.removeAfterDragOut = removeBox.state == .on
         prefs.closeWhenEmpty = closeBox.state == .on
+        prefs.mergeDroppedFiles = mergeBox.state == .on
     }
 
     @objc private func languageChanged() {

@@ -11,6 +11,9 @@ final class ShelfManager {
     private let prefs = Preferences.shared
     private let ioQueue = DispatchQueue(label: "com.doge.edgeshelf.io", qos: .utility)
     private var states: [ShelfKey: ShelfState] = [:]
+    /// Groups the user has expanded. The membership itself lives on
+    /// `ShelfItem.groupID`; this is only the current presentation state.
+    private var expandedGroups: Set<UUID> = []
     private(set) var windows: [ShelfKey: ShelfWindowController] = [:]
     private var pendingItems: Set<UUID> = []
     private(set) var isDragging = false
@@ -62,6 +65,7 @@ final class ShelfManager {
         for state in store.loadStates() {
             states[state.key] = state
         }
+        normalizeGroups()
         if store.loadFailed {
             // The state file was unreadable and has been moved aside. Every
             // item folder is therefore unreferenced, and pruning now would
@@ -103,6 +107,37 @@ final class ShelfManager {
     }
 
     // MARK: - Legacy storage
+
+    /// A group only makes sense with at least two surviving members. A crash
+    /// between removing a member and saving, or a file deleted on disk while
+    /// the app was closed, can leave a lone member behind; show it as a
+    /// normal card again.
+    private func normalizeGroups() {
+        var changed = false
+        for key in Array(states.keys) {
+            guard var state = states[key] else { continue }
+            var counts: [UUID: Int] = [:]
+            for item in state.items {
+                if let groupID = item.groupID {
+                    counts[groupID, default: 0] += 1
+                }
+            }
+            var stateChanged = false
+            for index in state.items.indices {
+                guard let groupID = state.items[index].groupID,
+                      (counts[groupID] ?? 0) < 2 else { continue }
+                state.items[index].groupID = nil
+                stateChanged = true
+            }
+            if stateChanged {
+                states[key] = state
+                changed = true
+            }
+        }
+        if changed {
+            save()
+        }
+    }
 
     /// Older versions copied everything into Items/. Where the original is
     /// still there, that copy is redundant: drop the local path and keep a
@@ -451,6 +486,79 @@ final class ShelfManager {
         states[key]?.items ?? []
     }
 
+    /// What the shelf actually shows: standalone cards, group headers, and —
+    /// when expanded — the group's members.
+    func rows(for key: ShelfKey) -> [ShelfRow] {
+        Self.buildRows(items: items(for: key), expandedGroups: expandedGroups)
+    }
+
+    /// Pure row builder, so the grouping rules can be covered by `--self-test`
+    /// without starting the window server.
+    static func buildRows(items all: [ShelfItem],
+                          expandedGroups: Set<UUID>) -> [ShelfRow] {
+        var rows: [ShelfRow] = []
+        var seenGroups: Set<UUID> = []
+        for item in all {
+            guard let groupID = item.groupID else {
+                rows.append(.item(item))
+                continue
+            }
+            guard !seenGroups.contains(groupID) else { continue }
+            seenGroups.insert(groupID)
+            let members = all.filter { $0.groupID == groupID }
+            if members.count > 1 {
+                rows.append(.group(id: groupID, items: members))
+                if expandedGroups.contains(groupID) {
+                    rows.append(contentsOf: members.map { .member($0, groupID: groupID) })
+                }
+            } else if let only = members.first {
+                rows.append(.item(only))
+            }
+        }
+        return rows
+    }
+
+    /// The number of cards currently on the shelf, which is what the window
+    /// height is based on. An expanded group counts its members too.
+    func displayCount(for key: ShelfKey) -> Int {
+        rows(for: key).count
+    }
+
+    func isGroupExpanded(_ groupID: UUID) -> Bool {
+        expandedGroups.contains(groupID)
+    }
+
+    func toggleGroup(_ groupID: UUID, in key: ShelfKey) {
+        guard states[key]?.items.contains(where: { $0.groupID == groupID }) == true else { return }
+        if expandedGroups.contains(groupID) {
+            expandedGroups.remove(groupID)
+        } else {
+            expandedGroups.insert(groupID)
+        }
+        // The click may have come from a view that is about to be replaced by
+        // refresh(); let AppKit finish dispatching first.
+        DispatchQueue.main.async { [weak self] in
+            self?.windows[key]?.refresh()
+            self?.updateHeights(animated: true)
+        }
+    }
+
+    /// Break a group apart without removing any of its files.
+    func ungroup(_ groupID: UUID, in key: ShelfKey) {
+        guard var state = states[key] else { return }
+        var changed = false
+        for index in state.items.indices where state.items[index].groupID == groupID {
+            state.items[index].groupID = nil
+            changed = true
+        }
+        guard changed else { return }
+        states[key] = state
+        expandedGroups.remove(groupID)
+        save()
+        windows[key]?.refresh()
+        updateHeights(animated: true)
+    }
+
     /// The URL the user should get when opening, revealing, copying, or
     /// dragging an item out. Preference order:
     ///   1. the original file, when the item references one and it still exists,
@@ -595,7 +703,7 @@ final class ShelfManager {
             let screenID = screen.edgeShelfDisplayID
             for edge in prefs.enabledEdges {
                 let key = ShelfKey(screenID: screenID, edge: edge)
-                let count = items(for: key).count
+                let count = displayCount(for: key)
                 let controller = ShelfWindowController(key: key,
                                                        frame: frame(for: screen, edge: edge, itemCount: count),
                                                        level: desktopRevealLevel ?? .floating,
@@ -774,7 +882,7 @@ final class ShelfManager {
         heightRetry?.cancel()
         heightRetry = nil
         for (key, controller) in windows {
-            controller.resize(forItemCount: items(for: key).count, animated: animated)
+            controller.resize(forItemCount: displayCount(for: key), animated: animated)
         }
     }
 
@@ -838,8 +946,9 @@ final class ShelfManager {
         case .promises(let receivers):
             // Resolving a promise synchronously on the main thread is a
             // classic multi-second hang, so hand them off and return.
+            let groupID = (prefs.mergeDroppedFiles && receivers.count > 1) ? UUID() : nil
             for receiver in receivers {
-                ingestPromise(receiver, into: key)
+                ingestPromise(receiver, into: key, groupID: groupID)
             }
             save()
             DispatchQueue.main.async { [weak self] in
@@ -851,6 +960,7 @@ final class ShelfManager {
             return true
 
         case .urls(let urls):
+            var newFileItems: [ShelfItem] = []
             for url in urls {
                 if url.isFileURL {
                     if state.items.contains(where: { $0.originalPath == url.path }) {
@@ -866,6 +976,7 @@ final class ShelfManager {
                                          originalPath: url.path,
                                          byteSize: size)
                     state.items.append(item)
+                    newFileItems.append(item)
                     added = true
                 } else {
                     let string = url.absoluteString
@@ -875,6 +986,17 @@ final class ShelfManager {
                                          urlString: string)
                     state.items.append(item)
                     added = true
+                }
+            }
+
+            // One Finder drag is one record. The group is derived from the
+            // items themselves, so each file keeps its own watcher and can
+            // still be removed individually after expanding the group.
+            if prefs.mergeDroppedFiles, newFileItems.count > 1 {
+                let groupID = UUID()
+                let ids = Set(newFileItems.map(\.id))
+                for index in state.items.indices where ids.contains(state.items[index].id) {
+                    state.items[index].groupID = groupID
                 }
             }
 
@@ -984,14 +1106,15 @@ final class ShelfManager {
         }
     }
 
-    private func ingestPromise(_ receiver: NSFilePromiseReceiver, into key: ShelfKey) {
+    private func ingestPromise(_ receiver: NSFilePromiseReceiver, into key: ShelfKey, groupID: UUID? = nil) {
         var state = ensureState(for: key)
         let id = UUID()
         let destination = store.itemsURL.appendingPathComponent(id.uuidString, isDirectory: true)
         try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
 
         let item = ShelfItem(kind: .file,
-                             displayName: receiver.fileNames.first ?? L10n.incomingFile)
+                             displayName: receiver.fileNames.first ?? L10n.incomingFile,
+                             groupID: groupID)
         state.items.append(item)
         states[key] = state
         pendingItems.insert(item.id)
@@ -1018,15 +1141,43 @@ final class ShelfManager {
     // MARK: - Item actions
 
     func remove(item: ShelfItem, from key: ShelfKey, deleteFiles: Bool = true) {
-        guard var state = states[key],
-              let index = state.items.firstIndex(where: { $0.id == item.id }) else { return }
-        state.items.remove(at: index)
-        states[key] = state
-        pendingItems.remove(item.id)
-        stopWatcher(for: item.id)
-        if deleteFiles {
-            store.deleteFiles(for: item.id)
+        removeItems([item], from: key, deleteFiles: deleteFiles)
+    }
+
+    func removeGroup(_ groupID: UUID, in key: ShelfKey) {
+        guard let state = states[key] else { return }
+        let members = state.items.filter { $0.groupID == groupID }
+        guard !members.isEmpty else { return }
+        removeItems(members, from: key, deleteFiles: true)
+    }
+
+    private func removeItems(_ items: [ShelfItem], from key: ShelfKey, deleteFiles: Bool) {
+        guard var state = states[key], !items.isEmpty else { return }
+        let ids = Set(items.map(\.id))
+        let groupIDs = Set(items.compactMap(\.groupID))
+        state.items.removeAll { ids.contains($0.id) }
+
+        for item in items {
+            pendingItems.remove(item.id)
+            stopWatcher(for: item.id)
+            if deleteFiles {
+                store.deleteFiles(for: item.id)
+            }
         }
+
+        // A group with one member is no longer a group. This also covers a
+        // file removed by its watcher while the group was expanded.
+        for groupID in groupIDs {
+            let remaining = state.items.filter { $0.groupID == groupID }
+            if remaining.count <= 1 {
+                for index in state.items.indices where state.items[index].groupID == groupID {
+                    state.items[index].groupID = nil
+                }
+                expandedGroups.remove(groupID)
+            }
+        }
+
+        states[key] = state
         save()
         windows[key]?.refresh()
         updateHeights(animated: true)
@@ -1041,17 +1192,29 @@ final class ShelfManager {
     }
 
     func didDragOut(item: ShelfItem, from key: ShelfKey) {
-        guard prefs.removeAfterDragOut else { return }
+        didDragOut(items: [item], from: key)
+    }
+
+    /// Called once a drag session completes. A group drops all of its members
+    /// in one session, so the removal has to be a batch operation too.
+    func didDragOut(items: [ShelfItem], from key: ShelfKey) {
+        guard prefs.removeAfterDragOut, !items.isEmpty else { return }
+        let ids = Set(items.map(\.id))
         // Give the destination time to start reading the original file before
-        // the card leaves the shelf. Removing a card never touches user files.
+        // the cards leave the shelf. Removing a card never touches user files.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            self?.remove(item: item, from: key, deleteFiles: false)
+            guard let self, let state = self.states[key] else { return }
+            let current = state.items.filter { ids.contains($0.id) }
+            self.removeItems(current, from: key, deleteFiles: false)
         }
     }
 
     func closeShelf(_ key: ShelfKey) {
         guard let state = states[key] else { return }
         for item in state.items {
+            if let groupID = item.groupID {
+                expandedGroups.remove(groupID)
+            }
             stopWatcher(for: item.id)
             store.deleteFiles(for: item.id)
         }
@@ -1116,7 +1279,7 @@ final class ShelfManager {
         lines.append("hovered=\(hoveredKeys.map(\.edge.rawValue))")
         lines.append("timers=\(autoHideTimers.count)")
         for (key, controller) in windows {
-            lines.append("\(key.edge.rawValue): presentation=\(controller.presentation) alpha=\(controller.window?.alphaValue ?? -1) items=\(items(for: key).count)")
+            lines.append("\(key.edge.rawValue): presentation=\(controller.presentation) alpha=\(controller.window?.alphaValue ?? -1) items=\(items(for: key).count) rows=\(displayCount(for: key))")
         }
         return lines.joined(separator: "\n")
     }
@@ -1131,6 +1294,11 @@ final class ShelfManager {
             let titles = controller.shelfView.makeContextMenu()?
                 .items.map { $0.isSeparatorItem ? "---" : $0.title } ?? ["<none>"]
             lines.append("\(key.edge.rawValue) shelf(count=\(items.count)): \(titles.joined(separator: " | "))")
+
+            if let group = controller.shelfView.groupViews.values.first {
+                let groupTitles = group.makeContextMenu().items.map { $0.isSeparatorItem ? "---" : $0.title }
+                lines.append("\(key.edge.rawValue) group(\(group.items.count)): \(groupTitles.joined(separator: " | "))")
+            }
 
             guard let first = controller.shelfView.itemViews.values.first else { continue }
             let cardTitles = first.makeContextMenu().items.map { $0.isSeparatorItem ? "---" : $0.title }
@@ -1176,6 +1344,27 @@ final class ShelfManager {
                                  displayName: fileURL.lastPathComponent,
                                  originalPath: fileURL.path)
             state.items.append(item)
+        }
+
+        // Debug-only group content for `--snapshot-groups`. It exercises a
+        // collapsed summary card and, with `--expand-groups`, its members.
+        if CommandLine.arguments.contains("--snapshot-groups") {
+            let directory = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("EdgeShelf-GroupDemo", isDirectory: true)
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let groupID = UUID()
+            let names = ["Roadmap.pdf", "Budget.xlsx", "Notes.md"]
+            for name in names {
+                let url = directory.appendingPathComponent(name)
+                let body = "EdgeShelf group demo: \(name)"
+                try? body.write(to: url, atomically: true, encoding: .utf8)
+                let size = Int64(body.utf8.count)
+                state.items.append(ShelfItem(kind: .file,
+                                             displayName: name,
+                                             groupID: groupID,
+                                             originalPath: url.path,
+                                             byteSize: size))
+            }
         }
 
         states[key] = state

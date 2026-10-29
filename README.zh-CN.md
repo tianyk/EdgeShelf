@@ -19,6 +19,7 @@ EdgeShelf 是一个面向 macOS 26/27 的轻量拖拽暂存搁板，也是
 - 把文件、文件夹、文本、图片、链接拖到左/右屏幕边缘。
 - 搁板直接引用原始文件或文件夹，不复制内容，所以超大文件也能瞬间放入，且不占额外空间。
 - 每个文件项目都用 kqueue vnode watcher 监听：原文件被删除（包括移到废纸篓）时卡片立即消失；在同一卷内重命名或移动时，卡片的路径和名称会自动更新。
+- 同一次拖入的多个文件默认合并成一张组卡片。点击展开成员，直接拖动组卡片即可一次移出全部文件。右键菜单提供全部打开、在访达中显示全部、拷贝全部、拆分为单独项目和移除这一组；也可以在偏好设置里关闭合并。
 - 粘贴的图片和通过文件承诺（file promise）接收的文件保存在 `~/Library/Application Support/EdgeShelf/Items`，其余内容都留在原处。
 - 搁板高度随内容在 220–560pt 之间变化；拖拽过程中冻结高度，避免 macOS 26 的拖拽重入问题。
 - 暖纸色浅色主题 / graphite 深色主题，陶土色强调色、克制的斜纹和柔和阴影。
@@ -89,6 +90,7 @@ git push origin v0.1.0
 - 松手后搁板直接引用原始文件，不会额外复制。
 - 鼠标移开立即收成边缘胶囊；移到胶囊附近再展开。
 - 右键项目：打开 / 在访达中显示 / 拷贝 / 从搁板移除。
+- 一次拖入多个文件时，它们会合并成一张组卡片。点击卡片展开成员，直接拖动卡片即可一次移出全部文件。右键组卡片可全部打开、在访达中显示全部、拷贝全部、拆分为单独项目或移除这一组；也可以在偏好设置里关闭合并。
 - 把项目拖到 Finder、邮件、Slack 等。拖出的是原始文件路径，属于复制操作，
   源文件不会被移动。
 - 菜单栏 → 偏好设置：边缘、行为、语言。
@@ -106,6 +108,10 @@ open build/EdgeShelf.app --args --demo
 
 # 不截屏，直接把搁板渲染到 /tmp/edgeshelf-snapshot.png
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot
+
+# 渲染收起和展开的组卡片
+build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups
+build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups --expand-groups
 
 # 强制语言做截图或手动检查
 build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang zh --snapshot --snapshot-many
@@ -126,12 +132,13 @@ build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang zh --snapshot --snapshot-man
 8. 右键项目，试打开、在访达中显示、拷贝。
 9. 在偏好设置里切换语言，搁板和偏好设置立即更新。
 10. 退出再启动，搁板、项目和语言选择都恢复。
+11. 一次拖入多个文件；出现一张组卡片。拖动组卡片，所有文件一起到达。点击展开后，可以单独拖出其中一个成员；右键组卡片可执行整组操作。
 
 ## 已知限制
 
 - 每条边每个显示器只有一个搁板；Dropshelf 支持同一条边多个搁板。
 - 上下边缘还没实现。
-- 还没有 Quick Look、打开方式子菜单、多选。
+- 还没有 Quick Look、打开方式子菜单；跨组多选尚未实现，但组内的多个文件可以一次拖出。
 - 运行中且文件仍在同一卷内时，重命名/移动会被跟随。App 未运行时发生的移动，或跨卷移动，会按删除处理。外接磁盘未挂载时项目会保留，重新挂载后恢复。
 - 重命名项目所在的父文件夹，会在下次启动、唤醒或挂载时更新；文件自身的 vnode 收不到祖先目录变化。
 - 某些网络卷不提供 kqueue 事件。这类卷上的变化只在启动、唤醒或挂载/卸载时检查，不是即时的。

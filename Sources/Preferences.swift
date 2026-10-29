@@ -10,6 +10,7 @@ final class Preferences {
         static let rightEnabled = "rightEnabled"
         static let removeAfterDragOut = "removeAfterDragOut"
         static let closeWhenEmpty = "closeWhenEmpty"
+        static let mergeDroppedFiles = "mergeDroppedFiles"
     }
 
     private let defaults = UserDefaults.standard
@@ -20,6 +21,7 @@ final class Preferences {
             Key.rightEnabled: true,
             Key.removeAfterDragOut: true,
             Key.closeWhenEmpty: true,
+            Key.mergeDroppedFiles: true,
         ])
     }
 
@@ -41,6 +43,13 @@ final class Preferences {
     var closeWhenEmpty: Bool {
         get { defaults.bool(forKey: Key.closeWhenEmpty) }
         set { defaults.set(newValue, forKey: Key.closeWhenEmpty) }
+    }
+
+    /// A Finder drag can carry several files. On by default, they become one
+    /// shelf card; dragging that card out moves every file in one session.
+    var mergeDroppedFiles: Bool {
+        get { defaults.bool(forKey: Key.mergeDroppedFiles) }
+        set { defaults.set(newValue, forKey: Key.mergeDroppedFiles) }
     }
 
     var enabledEdges: [ShelfEdge] {

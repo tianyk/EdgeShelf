@@ -205,20 +205,26 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     private(set) var item: ShelfItem
     private weak var manager: ShelfManager?
     private let key: ShelfKey
+    private let isGroupMember: Bool
 
     private let iconView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let subtitleLabel = NSTextField(labelWithString: "")
     private let closeButton = HoverIconButton()
+    private let groupMarker = NSView()
     private let spinner = NSProgressIndicator()
     private var trackingArea: NSTrackingArea?
     private var isHovered = false
     private var isDraggingOut = false
 
-    init(item: ShelfItem, key: ShelfKey, manager: ShelfManager) {
+    init(item: ShelfItem,
+         key: ShelfKey,
+         manager: ShelfManager,
+         isGroupMember: Bool = false) {
         self.item = item
         self.key = key
         self.manager = manager
+        self.isGroupMember = isGroupMember
         super.init(frame: NSRect(x: 0, y: 0, width: ShelfMetrics.itemWidth, height: ShelfMetrics.itemHeight))
         wantsLayer = true
         layer?.cornerRadius = ShelfMetrics.itemCornerRadius
@@ -233,6 +239,12 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
         iconView.layer?.borderWidth = 1
         iconView.layer?.borderColor = NSColor.black.withAlphaComponent(0.06).cgColor
         addSubview(iconView)
+
+        groupMarker.wantsLayer = true
+        groupMarker.layer?.cornerRadius = 1.5
+        groupMarker.layer?.backgroundColor = ShelfTheme.accent.withAlphaComponent(0.45).cgColor
+        groupMarker.isHidden = !isGroupMember
+        addSubview(groupMarker)
 
         titleLabel.frame = NSRect(x: 64, y: 12, width: ShelfMetrics.itemWidth - 64 - 34, height: 18)
         titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -276,6 +288,11 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
         let rtl = L10n.isRTL
         let iconX = rtl ? bounds.width - 10 - 44 : 10
         iconView.frame = NSRect(x: iconX, y: 10, width: 44, height: 44)
+
+        groupMarker.frame = NSRect(x: rtl ? bounds.width - 3 : 0,
+                                   y: 14,
+                                   width: 3,
+                                   height: max(0, bounds.height - 28))
 
         let textX: CGFloat = rtl ? 42 : 64
         let textWidth = rtl ? bounds.width - 42 - 64 : bounds.width - 64 - 34
@@ -607,6 +624,470 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     }
 }
 
+// MARK: - Group card
+
+/// A summary card for one multi-file drop. Every member is still a normal
+/// `ShelfItem` underneath; this view only aggregates them for display and for
+/// a single drag session that carries all of their URLs.
+final class GroupItemView: NSView, NSDraggingSource, NSMenuItemValidation {
+    private(set) var groupID: UUID
+    private(set) var items: [ShelfItem]
+    private weak var manager: ShelfManager?
+    private let key: ShelfKey
+
+    private let iconView = NSImageView()
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let subtitleLabel = NSTextField(labelWithString: "")
+    private let closeButton = HoverIconButton()
+    private let spinner = NSProgressIndicator()
+    private var trackingArea: NSTrackingArea?
+    private var isHovered = false
+    private var isDraggingOut = false
+    private var startedDrag = false
+    private var draggedItems: [ShelfItem] = []
+    private var iconLoadToken = UUID()
+
+    init(groupID: UUID,
+         items: [ShelfItem],
+         key: ShelfKey,
+         manager: ShelfManager) {
+        self.groupID = groupID
+        self.items = items
+        self.key = key
+        self.manager = manager
+        super.init(frame: NSRect(x: 0, y: 0, width: ShelfMetrics.itemWidth, height: ShelfMetrics.itemHeight))
+        wantsLayer = true
+        layer?.cornerRadius = ShelfMetrics.itemCornerRadius
+        layer?.borderWidth = 1
+        layer?.masksToBounds = false
+
+        iconView.frame = NSRect(x: 10, y: 10, width: 44, height: 44)
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.image = Self.composeGroupIcon(images: [])
+        iconView.wantsLayer = true
+        iconView.layer?.masksToBounds = false
+        addSubview(iconView)
+
+        titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.textColor = .labelColor
+        addSubview(titleLabel)
+
+        subtitleLabel.font = .systemFont(ofSize: 10.5)
+        subtitleLabel.lineBreakMode = .byTruncatingTail
+        subtitleLabel.textColor = .secondaryLabelColor
+        addSubview(subtitleLabel)
+
+        closeButton.isBordered = false
+        closeButton.image = NSImage(systemSymbolName: "xmark", accessibilityDescription: L10n.remove)
+        closeButton.contentTintColor = .secondaryLabelColor
+        closeButton.target = self
+        closeButton.action = #selector(removeSelf)
+        closeButton.toolTip = L10n.removeGroup
+        closeButton.isHidden = true
+        addSubview(closeButton)
+
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.isDisplayedWhenStopped = false
+        addSubview(spinner)
+
+        toolTip = L10n.groupHelp
+        updateLabels()
+        loadIcon()
+        needsLayout = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override var isFlipped: Bool { true }
+
+    override func layout() {
+        super.layout()
+        let rtl = L10n.isRTL
+        let iconX = rtl ? bounds.width - 10 - 44 : 10
+        iconView.frame = NSRect(x: iconX, y: 10, width: 44, height: 44)
+
+        let textX: CGFloat = rtl ? 42 : 64
+        let textWidth = rtl ? bounds.width - 42 - 64 : bounds.width - 64 - 34
+        titleLabel.frame = NSRect(x: textX, y: 12, width: textWidth, height: 18)
+        subtitleLabel.frame = NSRect(x: textX, y: 33, width: textWidth, height: 15)
+        titleLabel.alignment = rtl ? .right : .left
+        subtitleLabel.alignment = rtl ? .right : .left
+
+        closeButton.frame = NSRect(x: rtl ? 12 : bounds.width - 34, y: 21, width: 22, height: 22)
+        spinner.frame = NSRect(x: rtl ? 14 : bounds.width - 32, y: 24, width: 16, height: 16)
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard frame.contains(point) else { return nil }
+        let localPoint = convert(point, from: superview)
+        if !closeButton.isHidden, closeButton.frame.contains(localPoint) {
+            return closeButton
+        }
+        return self
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    func update(with items: [ShelfItem], reloadThumbnail: Bool = false) {
+        let oldByID = Dictionary(uniqueKeysWithValues: self.items.map { ($0.id, $0) })
+        let membershipChanged = self.items.map(\.id) != items.map(\.id)
+        var iconChanged = membershipChanged
+
+        for item in items {
+            guard let old = oldByID[item.id] else {
+                iconChanged = true
+                continue
+            }
+            if reloadThumbnail {
+                ThumbnailLoader.invalidate(itemID: item.id)
+                iconChanged = true
+            }
+            if old.relativePath != item.relativePath
+                || old.originalPath != item.originalPath
+                || old.kind != item.kind {
+                iconChanged = true
+                ThumbnailLoader.invalidate(itemID: item.id)
+            }
+        }
+
+        self.items = items
+        updateLabels()
+        if iconChanged {
+            loadIcon()
+        }
+    }
+
+    private func updateLabels() {
+        titleLabel.stringValue = L10n.groupItems(items.count)
+
+        let pending = items.contains { manager?.isPending($0.id) == true }
+        if pending {
+            subtitleLabel.stringValue = L10n.copying
+            spinner.startAnimation(nil)
+            spinner.isHidden = false
+            closeButton.isHidden = true
+        } else {
+            let names = items.prefix(3).map(\.displayName).joined(separator: " · ")
+            subtitleLabel.stringValue = items.count > 3 ? names + " …" : names
+            spinner.stopAnimation(nil)
+            spinner.isHidden = true
+            closeButton.isHidden = !isHovered
+        }
+
+        updateBackground()
+    }
+
+    /// The group icon is a small pile of the first few member thumbnails.
+    /// Three is enough to read as a stack without turning the icon into mush.
+    private func loadIcon() {
+        let token = UUID()
+        iconLoadToken = token
+        let members = Array(items.prefix(3))
+        guard !members.isEmpty else {
+            iconView.image = Self.composeGroupIcon(images: [])
+            return
+        }
+
+        var loaded: [UUID: NSImage] = [:]
+        var remaining = members.count
+        for item in members {
+            ThumbnailLoader.icon(for: item, store: .shared) { [weak self] image in
+                guard let self, self.iconLoadToken == token else { return }
+                if let image {
+                    loaded[item.id] = image
+                }
+                remaining -= 1
+                guard remaining == 0 else { return }
+                let ordered = members.compactMap { loaded[$0.id] }
+                self.iconView.image = Self.composeGroupIcon(images: ordered)
+            }
+        }
+    }
+
+    private static func composeGroupIcon(images: [NSImage]) -> NSImage {
+        // Back-to-front geometry: a small hand of photos, not a grid.
+        let pictures = Array(images.prefix(3))
+        let centers = [
+            NSPoint(x: 38, y: 36),
+            NSPoint(x: 47, y: 45),
+            NSPoint(x: 56, y: 54),
+        ]
+        let angles: [CGFloat] = [-8, 1, 10]
+        let side: CGFloat = 58
+
+        return NSImage(size: NSSize(width: 96, height: 96), flipped: false) { _ in
+            let count = pictures.isEmpty ? 3 : pictures.count
+            for depth in stride(from: count - 1, through: 0, by: -1) {
+                let center = centers[depth]
+                let angle = angles[depth]
+                let card = NSRect(x: center.x - side / 2,
+                                  y: center.y - side / 2,
+                                  width: side,
+                                  height: side)
+                let path = NSBezierPath(roundedRect: card, xRadius: 12, yRadius: 12)
+
+                NSGraphicsContext.saveGraphicsState()
+                let transform = NSAffineTransform()
+                transform.translateX(by: center.x, yBy: center.y)
+                transform.rotate(byDegrees: angle)
+                transform.translateX(by: -center.x, yBy: -center.y)
+                transform.concat()
+
+                let shadow = NSShadow()
+                shadow.shadowColor = NSColor.black.withAlphaComponent(0.18)
+                shadow.shadowBlurRadius = 6
+                shadow.shadowOffset = NSSize(width: 0, height: -2)
+                NSGraphicsContext.saveGraphicsState()
+                shadow.set()
+                ShelfTheme.card.setFill()
+                path.fill()
+                NSGraphicsContext.restoreGraphicsState()
+
+                if depth < pictures.count {
+                    NSGraphicsContext.saveGraphicsState()
+                    path.addClip()
+                    drawFilling(pictures[depth], in: card)
+                    NSGraphicsContext.restoreGraphicsState()
+                }
+
+                ShelfTheme.border.setStroke()
+                path.lineWidth = 1.5
+                path.stroke()
+                NSGraphicsContext.restoreGraphicsState()
+            }
+            return true
+        }
+    }
+
+    private static func drawFilling(_ image: NSImage, in rect: NSRect) {
+        let size = image.size
+        guard size.width > 0, size.height > 0 else { return }
+        let scale = max(rect.width / size.width, rect.height / size.height)
+        let target = NSRect(x: rect.midX - size.width * scale / 2,
+                            y: rect.midY - size.height * scale / 2,
+                            width: size.width * scale,
+                            height: size.height * scale)
+        image.draw(in: target, from: .zero, operation: .sourceOver, fraction: 1)
+    }
+
+    private func updateBackground() {
+        let expanded = manager?.isGroupExpanded(groupID) ?? false
+        let base = isHovered
+            ? ShelfTheme.cardHover
+            : (expanded ? ShelfTheme.accentSoft : ShelfTheme.card)
+        layer?.backgroundColor = base.cgColor
+        layer?.borderColor = (isHovered || expanded
+            ? ShelfTheme.accentBorder.cgColor
+            : ShelfTheme.border.cgColor)
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = isHovered ? 0.10 : 0.0
+        layer?.shadowRadius = 6
+        layer?.shadowOffset = CGSize(width: 0, height: -2)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateBackground()
+        loadIcon()
+    }
+
+    // MARK: Hover
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(rect: bounds,
+                                  options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                  owner: self,
+                                  userInfo: nil)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovered = true
+        updateLabels()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovered = false
+        updateLabels()
+    }
+
+    // MARK: Click and drag
+
+    override func mouseDown(with event: NSEvent) {
+        startedDrag = false
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        defer { startedDrag = false }
+        guard !startedDrag, event.clickCount == 1 else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        guard bounds.contains(point) else { return }
+        manager?.toggleGroup(groupID, in: key)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard !startedDrag, let manager else { return }
+        let draggable = items.filter {
+            !manager.isPending($0.id) && manager.userFacingURL(for: $0) != nil
+        }
+        guard !draggable.isEmpty else { return }
+
+        startedDrag = true
+        isDraggingOut = true
+        updateBackground()
+
+        let image = snapshotImage() ?? iconView.image
+        var draggingItems: [NSDraggingItem] = []
+        var includedItems: [ShelfItem] = []
+        for item in draggable {
+            guard let url = manager.userFacingURL(for: item) else { continue }
+            let draggingItem = NSDraggingItem(pasteboardWriter: url as NSURL)
+            draggingItem.setDraggingFrame(bounds, contents: image)
+            draggingItems.append(draggingItem)
+            includedItems.append(item)
+        }
+        guard !draggingItems.isEmpty else {
+            startedDrag = false
+            isDraggingOut = false
+            updateBackground()
+            return
+        }
+        draggedItems = includedItems
+
+        let session = beginDraggingSession(with: draggingItems, event: event, source: self)
+        session.animatesToStartingPositionsOnCancelOrFail = true
+        session.draggingFormation = draggingItems.count > 1 ? .stack : .none
+    }
+
+    private func snapshotImage() -> NSImage? {
+        guard bounds.width > 0, bounds.height > 0,
+              let rep = bitmapImageRepForCachingDisplay(in: bounds) else { return nil }
+        cacheDisplay(in: bounds, to: rep)
+        let image = NSImage(size: bounds.size)
+        image.addRepresentation(rep)
+        return image
+    }
+
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        .copy
+    }
+
+    func draggingSession(_ session: NSDraggingSession,
+                         endedAt screenPoint: NSPoint,
+                         operation: NSDragOperation) {
+        isDraggingOut = false
+        updateBackground()
+        if operation != [], !draggedItems.isEmpty {
+            manager?.didDragOut(items: draggedItems, from: key)
+        }
+        draggedItems = []
+    }
+
+    // MARK: Actions
+
+    private var urls: [URL] {
+        guard let manager else { return [] }
+        return items.compactMap { manager.userFacingURL(for: $0) }
+    }
+
+    @objc private func removeSelf() {
+        manager?.removeGroup(groupID, in: key)
+    }
+
+    private func openAll() {
+        for url in urls {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    private func showAllInFinder() {
+        let urls = urls
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
+    }
+
+    private func copyAll() {
+        let urls = urls
+        guard !urls.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects(urls as [NSURL])
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        NSMenu.popUpContextMenu(makeContextMenu(), with: event, for: self)
+    }
+
+    func makeContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        let expanded = manager?.isGroupExpanded(groupID) ?? false
+
+        menu.addItem(menuItem(expanded ? L10n.collapseGroup : L10n.expandGroup,
+                              symbol: expanded ? "chevron.up" : "chevron.down",
+                              action: #selector(menuToggle)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem(L10n.openAll,
+                              symbol: "arrow.up.forward.app",
+                              action: #selector(menuOpenAll)))
+        menu.addItem(menuItem(L10n.showAllInFinder,
+                              symbol: "folder",
+                              action: #selector(menuRevealAll)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem(L10n.copyAll,
+                              symbol: "doc.on.doc",
+                              action: #selector(menuCopyAll)))
+        menu.addItem(menuItem(L10n.ungroup,
+                              symbol: "rectangle.split.2x1",
+                              action: #selector(menuUngroup)))
+        menu.addItem(.separator())
+        menu.addItem(menuItem(L10n.removeGroup,
+                              symbol: "trash",
+                              action: #selector(menuRemoveGroup)))
+        if let manager, !manager.items(for: key).isEmpty {
+            menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.clearShelf,
+                                  symbol: "trash.slash",
+                                  action: #selector(menuClearShelf)))
+        }
+        return menu
+    }
+
+    private func menuItem(_ title: String,
+                          symbol: String,
+                          action: Selector,
+                          key: String = "",
+                          modifiers: NSEvent.ModifierFlags = []) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        item.keyEquivalentModifierMask = modifiers
+        item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        return item
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(menuOpenAll), #selector(menuRevealAll), #selector(menuCopyAll):
+            return !urls.isEmpty
+        default:
+            return true
+        }
+    }
+
+    @objc private func menuToggle() { manager?.toggleGroup(groupID, in: key) }
+    @objc private func menuOpenAll() { openAll() }
+    @objc private func menuRevealAll() { showAllInFinder() }
+    @objc private func menuCopyAll() { copyAll() }
+    @objc private func menuUngroup() { manager?.ungroup(groupID, in: key) }
+    @objc private func menuRemoveGroup() { manager?.removeGroup(groupID, in: key) }
+    @objc private func menuClearShelf() { manager?.clearShelfAfterConfirmation(key) }
+}
+
 // MARK: - Shelf panel
 
 final class ShelfView: NSView {
@@ -625,6 +1106,7 @@ final class ShelfView: NSView {
     private let tabView = ShelfTabView()
 
     private(set) var itemViews: [UUID: ItemView] = [:]
+    private(set) var groupViews: [UUID: GroupItemView] = [:]
     private var isDropHighlighted = false
     private var isCollapsed = false
 
@@ -785,33 +1267,57 @@ final class ShelfView: NSView {
     func refresh() {
         guard let manager else { return }
         let items = manager.items(for: key)
-        let previousIDs = Set(itemViews.keys)
+        let rows = manager.rows(for: key)
+        let previousItemIDs = Set(itemViews.keys)
+        let previousGroupIDs = Set(groupViews.keys)
 
         titleLabel.stringValue = L10n.shelf
         titleLabel.sizeToFit()
         countLabel.stringValue = "\(items.count)"
         countBackground.isHidden = items.isEmpty
 
-        emptyState.isHidden = !items.isEmpty
-        scrollView.isHidden = items.isEmpty
+        emptyState.isHidden = !rows.isEmpty
+        scrollView.isHidden = rows.isEmpty
 
         for view in stack.arrangedSubviews {
             stack.removeArrangedSubview(view)
             view.removeFromSuperview()
         }
         itemViews.removeAll()
+        groupViews.removeAll()
 
         var appearingViews: [NSView] = []
-        for item in items {
-            let view = ItemView(item: item, key: key, manager: manager)
+        func addCard(_ view: NSView, isNew: Bool) {
             view.translatesAutoresizingMaskIntoConstraints = false
             view.heightAnchor.constraint(equalToConstant: ShelfMetrics.itemHeight).isActive = true
-            if !previousIDs.contains(item.id) {
+            if isNew {
                 view.alphaValue = 0
                 appearingViews.append(view)
             }
             stack.addArrangedSubview(view)
-            itemViews[item.id] = view
+        }
+
+        for row in rows {
+            switch row {
+            case .item(let item):
+                let view = ItemView(item: item, key: key, manager: manager)
+                addCard(view, isNew: !previousItemIDs.contains(item.id))
+                itemViews[item.id] = view
+            case .group(let groupID, let members):
+                let view = GroupItemView(groupID: groupID,
+                                         items: members,
+                                         key: key,
+                                         manager: manager)
+                addCard(view, isNew: !previousGroupIDs.contains(groupID))
+                groupViews[groupID] = view
+            case .member(let item, _):
+                let view = ItemView(item: item,
+                                    key: key,
+                                    manager: manager,
+                                    isGroupMember: true)
+                addCard(view, isNew: !previousItemIDs.contains(item.id))
+                itemViews[item.id] = view
+            }
         }
 
         if !appearingViews.isEmpty, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
@@ -831,6 +1337,13 @@ final class ShelfView: NSView {
         guard let manager,
               let item = manager.items(for: key).first(where: { $0.id == id }) else { return }
         itemViews[id]?.update(with: item, reloadThumbnail: reloadThumbnail)
+
+        // A member can change while the group is collapsed, in which case only
+        // the summary card is on screen. Keep its title and subtitle in sync.
+        if let groupID = item.groupID, let groupView = groupViews[groupID] {
+            let members = manager.items(for: key).filter { $0.groupID == groupID }
+            groupView.update(with: members, reloadThumbnail: reloadThumbnail)
+        }
     }
 
     /// Used by `--debug-hittest`; verifies the item cards are actually
@@ -843,6 +1356,12 @@ final class ShelfView: NSView {
             let point = view.convert(center, to: view.superview)
             let hit = view.hitTest(point)
             lines.append("\(view.item.displayName): frame=\(view.frame) hit=\(hit === view)")
+        }
+        for view in groupViews.values {
+            let center = NSPoint(x: view.bounds.midX, y: view.bounds.midY)
+            let point = view.convert(center, to: view.superview)
+            let hit = view.hitTest(point)
+            lines.append("\(L10n.groupItems(view.items.count)): frame=\(view.frame) hit=\(hit === view)")
         }
         return lines.joined(separator: "\n")
     }
