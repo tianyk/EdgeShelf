@@ -35,6 +35,8 @@ diagnosis.
   type, and size; hover reveals the remove button.
 - Collapses to an 8 × 96 pt gradient tab at the edge as soon as the pointer
   leaves; hover the edge to expand it again.
+- Keeps working while macOS Show Desktop is revealed: the edge windows are
+  rebuilt so a file can still be dropped on the shelf.
 - Right-click menu: Open, Show in Finder, Copy, Remove — with keyboard
   shortcuts — plus Clear Shelf for the whole shelf.
 - Six UN languages plus “Follow System”.

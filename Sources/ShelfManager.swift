@@ -26,6 +26,8 @@ final class ShelfManager {
     private var workspaceObservers: [NSObjectProtocol] = []
     private var fileWatchers: [UUID: FileWatcher] = [:]
     private var watchGenerations: [UUID: UUID] = [:]
+    private var desktopRevealTimer: Timer?
+    private var desktopRevealLevel: NSWindow.Level?
 
     private struct MissingFile {
         let key: ShelfKey
@@ -80,13 +82,18 @@ final class ShelfManager {
             self?.scheduleRebuild()
         }
 
+        // If the app launches while Show Desktop is already revealed, the
+        // windows have to be born above the reveal window, not behind it.
+        desktopRevealLevel = Self.desktopRevealLayer().map { NSWindow.Level(rawValue: $0 + 1) }
         rebuildWindows()
+        startDesktopRevealPolling()
         ensureFileWatchers()
         observeWorkspaceEvents()
         reconcileFileItems()
     }
 
     deinit {
+        desktopRevealTimer?.invalidate()
         for token in workspaceObservers {
             NSWorkspace.shared.notificationCenter.removeObserver(token)
         }
@@ -478,6 +485,75 @@ final class ShelfManager {
 
     // MARK: - Windows
 
+    /// The layer of the Dock's Show Desktop reveal window, or nil when the
+    /// desktop is not revealed.
+    ///
+    /// Show Desktop has no notification and no public state. While it is
+    /// active, the Dock owns an on-screen window at a layer between the
+    /// desktop and the Dock itself (layer 18 on macOS 26) that is exactly one
+    /// screen in size. In normal use the Dock only has windows at negative
+    /// layers and at its own bar level (20), so this window is the state we
+    /// can observe. The query returns window metadata only; it needs no
+    /// Screen Recording permission.
+    private static func desktopRevealLayer() -> Int? {
+        guard let dock = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.dock").first,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly],
+                                                    kCGNullWindowID) as? [[String: Any]] else {
+            return nil
+        }
+        let screenSizes = NSScreen.screens.map { $0.frame.size }
+        for info in list {
+            guard (info[kCGWindowOwnerPID as String] as? Int32) == dock.processIdentifier,
+                  let layer = info[kCGWindowLayer as String] as? Int,
+                  layer > 0, layer < 20,
+                  let bounds = info[kCGWindowBounds as String] as? [String: CGFloat],
+                  let width = bounds["Width"], let height = bounds["Height"],
+                  screenSizes.contains(where: { abs($0.width - width) < 2 && abs($0.height - height) < 2 }) else {
+                continue
+            }
+            return layer
+        }
+        return nil
+    }
+
+    /// Show Desktop is only observable by looking. Poll at the same cadence as
+    /// the drag watchdog; one window-list query takes about a millisecond.
+    private func startDesktopRevealPolling() {
+        let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.pollDesktopReveal()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        desktopRevealTimer = timer
+    }
+
+    private func pollDesktopReveal() {
+        if let layer = Self.desktopRevealLayer() {
+            // A reveal that starts mid-drag is picked up after the drag ends.
+            guard !isDragging else { return }
+            let level = NSWindow.Level(rawValue: layer + 1)
+            guard desktopRevealLevel != level else { return }
+            let wasRevealed = desktopRevealLevel != nil
+            desktopRevealLevel = level
+            if wasRevealed {
+                setShelfWindowLevel(level)
+            } else {
+                NSLog("EdgeShelf: Show Desktop is active; rebuilding the edge windows")
+                rebuildWindowsNow(expandNonEmpty: false)
+            }
+        } else if desktopRevealLevel != nil, !isDragging {
+            // Keep the raised level until a drag ends; lowering it mid-drag
+            // would take the drop target out from under the pointer.
+            desktopRevealLevel = nil
+            setShelfWindowLevel(.floating)
+        }
+    }
+
+    private func setShelfWindowLevel(_ level: NSWindow.Level) {
+        for controller in windows.values {
+            controller.window?.level = level
+        }
+    }
+
     private func frame(for screen: NSScreen, edge: ShelfEdge, itemCount: Int) -> NSRect {
         let width = ShelfMetrics.windowWidth
         let height = ShelfMetrics.windowHeight(forItemCount: itemCount)
@@ -493,7 +569,17 @@ final class ShelfManager {
             needsRebuild = true
             return
         }
+        rebuildWindowsNow(expandNonEmpty: true)
+    }
+
+    /// Replaces every edge window. Existing windows are closed first.
+    ///
+    /// `expandNonEmpty` is false when rebuilding during Show Desktop: the new
+    /// windows start in their resting state and are expanded by the drag
+    /// preview as usual.
+    private func rebuildWindowsNow(expandNonEmpty: Bool) {
         needsRebuild = false
+        activePreview = nil
 
         for timer in autoHideTimers.values { timer.invalidate() }
         autoHideTimers.removeAll()
@@ -512,11 +598,14 @@ final class ShelfManager {
                 let count = items(for: key).count
                 let controller = ShelfWindowController(key: key,
                                                        frame: frame(for: screen, edge: edge, itemCount: count),
+                                                       level: desktopRevealLevel ?? .floating,
                                                        manager: self)
                 windows[key] = controller
                 if count > 0 {
-                    controller.setPresentation(.expanded, animated: false)
-                    scheduleAutoHide(key)
+                    controller.setPresentation(expandNonEmpty ? .expanded : .collapsed, animated: false)
+                    if expandNonEmpty {
+                        scheduleAutoHide(key)
+                    }
                 }
             }
         }
@@ -536,6 +625,22 @@ final class ShelfManager {
 
     func beginDrag() {
         isDragging = true
+
+        // The half-second poll may not have seen a reveal that began just
+        // before the drag. Rebuild on the next run-loop turn, before the
+        // pointer can reach an edge, so the drag finds a live shelf there.
+        guard desktopRevealLevel == nil, let layer = Self.desktopRevealLayer() else { return }
+        desktopRevealLevel = NSWindow.Level(rawValue: layer + 1)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard self.isDragging else {
+                // The drag ended first; let the poll rebuild when idle.
+                self.desktopRevealLevel = nil
+                return
+            }
+            self.rebuildWindowsNow(expandNonEmpty: false)
+            self.updateDrag(cursor: NSEvent.mouseLocation)
+        }
     }
 
     /// Called on the next main-runloop turn after a mouseDragged event, never
@@ -1007,6 +1112,7 @@ final class ShelfManager {
     func debugState() -> String {
         var lines: [String] = []
         lines.append("isDragging=\(isDragging)")
+        lines.append("desktopRevealed=\(desktopRevealLevel != nil)")
         lines.append("hovered=\(hoveredKeys.map(\.edge.rawValue))")
         lines.append("timers=\(autoHideTimers.count)")
         for (key, controller) in windows {

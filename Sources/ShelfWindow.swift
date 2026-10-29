@@ -35,7 +35,7 @@ final class ShelfWindowController: NSWindowController {
     private(set) var presentation: Presentation = .hidden
     var isExpanded: Bool { presentation == .expanded }
 
-    init(key: ShelfKey, frame: NSRect, manager: ShelfManager) {
+    init(key: ShelfKey, frame: NSRect, level: NSWindow.Level = .floating, manager: ShelfManager) {
         self.key = key
 
         let window = ShelfWindow(contentRect: frame,
@@ -45,7 +45,7 @@ final class ShelfWindowController: NSWindowController {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.level = .floating
+        window.level = level
         window.collectionBehavior = [.canJoinAllSpaces,
                                      .stationary,
                                      .fullScreenAuxiliary,
