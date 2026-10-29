@@ -720,23 +720,34 @@ final class ShelfView: NSView {
         let textSize = countLabel.frame.size
         let countWidth = max(20, textSize.width + 10)
 
+        // The icon, title and count badge share the header's vertical centre.
+        // NSTextField draws a single line from the top of its frame, so the
+        // label must be exactly one line tall; a taller frame would push the
+        // text up and leave the icon looking low.
+        let iconSide: CGFloat = 17
+        let iconY = (ShelfMetrics.headerHeight - iconSide) / 2
+        let badgeY = (ShelfMetrics.headerHeight - badgeHeight) / 2
+
         if L10n.isRTL {
-            headerIcon.frame = NSRect(x: panelWidth - 14 - 17, y: 16, width: 17, height: 17)
+            headerIcon.frame = NSRect(x: panelWidth - 14 - iconSide, y: iconY, width: iconSide, height: iconSide)
             titleLabel.sizeToFit()
             titleLabel.frame = NSRect(x: headerIcon.frame.minX - 8 - titleLabel.frame.width,
-                                      y: 14,
+                                      y: (ShelfMetrics.headerHeight - titleLabel.frame.height) / 2,
                                       width: titleLabel.frame.width,
-                                      height: 20)
+                                      height: titleLabel.frame.height)
             countBackground.frame = NSRect(x: titleLabel.frame.minX - 8 - countWidth,
-                                           y: 15,
+                                           y: badgeY,
                                            width: countWidth,
                                            height: badgeHeight)
         } else {
-            headerIcon.frame = NSRect(x: 14, y: 16, width: 17, height: 17)
+            headerIcon.frame = NSRect(x: 14, y: iconY, width: iconSide, height: iconSide)
             titleLabel.sizeToFit()
-            titleLabel.frame = NSRect(x: 39, y: 14, width: titleLabel.frame.width, height: 20)
+            titleLabel.frame = NSRect(x: 39,
+                                      y: (ShelfMetrics.headerHeight - titleLabel.frame.height) / 2,
+                                      width: titleLabel.frame.width,
+                                      height: titleLabel.frame.height)
             countBackground.frame = NSRect(x: titleLabel.frame.maxX + 8,
-                                           y: 15,
+                                           y: badgeY,
                                            width: countWidth,
                                            height: badgeHeight)
         }
