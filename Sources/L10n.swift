@@ -148,12 +148,20 @@ enum L10n {
 
     // Preferences.
     static var prefsTitle: String { string("prefsTitle") }
-    static var prefsIntro: String { string("prefsIntro") }
     static var enableLeft: String { string("enableLeft") }
     static var enableRight: String { string("enableRight") }
     static var removeAfterDragOut: String { string("removeAfterDragOut") }
     static var closeWhenEmpty: String { string("closeWhenEmpty") }
     static var mergeDroppedFiles: String { string("mergeDroppedFiles") }
+    static var launchAtLogin: String { string("launchAtLogin") }
+    static var launchAtLoginFailedTitle: String { string("launchAtLoginFailedTitle") }
+    static func launchAtLoginFailed(_ detail: String) -> String {
+        String(format: string("launchAtLoginFailed"), detail)
+    }
+    static var launchAtLoginNeedsApproval: String { string("launchAtLoginNeedsApproval") }
+    static var launchAtLoginInactive: String { string("launchAtLoginInactive") }
+    static var launchAtLoginHint: String { string("launchAtLoginHint") }
+    static var openLoginItems: String { string("openLoginItems") }
     static var showDataFolder: String { string("showDataFolder") }
     static var closeAllShelves: String { string("closeAllShelves") }
     static var removeAllTitle: String { string("removeAllTitle") }
@@ -228,12 +236,18 @@ enum L10n {
         "about": "About Hamster",
         "quit": "Quit Hamster",
         "prefsTitle": "Hamster Preferences",
-        "prefsIntro": "Drag files, folders, text, images or links to a screen edge. A shelf will wait there until you drag the items back out.",
         "enableLeft": "Enable the left screen edge",
         "enableRight": "Enable the right screen edge",
         "removeAfterDragOut": "Remove items after dragging them out",
         "closeWhenEmpty": "Close a shelf when its last item is removed",
         "mergeDroppedFiles": "Merge files dropped together into one item",
+        "launchAtLogin": "Launch Hamster at login",
+        "launchAtLoginFailedTitle": "Could not change Login Items",
+        "launchAtLoginFailed": "Hamster could not update Login Items: %@",
+        "launchAtLoginNeedsApproval": "Hamster is registered but needs your approval. Allow it in System Settings → General → Login Items.",
+        "launchAtLoginInactive": "The login item did not become active.",
+        "launchAtLoginHint": "If you are running Hamster from a build folder, move it to the Applications folder and try again.",
+        "openLoginItems": "Open Login Items",
         "showDataFolder": "Show Data Folder",
         "closeAllShelves": "Close All Shelves",
         "removeAllTitle": "Remove all shelf items?",
@@ -300,12 +314,18 @@ enum L10n {
         "about": "关于 Hamster",
         "quit": "退出 Hamster",
         "prefsTitle": "Hamster 偏好设置",
-        "prefsIntro": "把文件、文件夹、文本、图片或链接拖到屏幕边缘。暂存面板会一直保留，直到你把项目拖出去。",
         "enableLeft": "启用屏幕左边缘",
         "enableRight": "启用屏幕右边缘",
         "removeAfterDragOut": "拖出后移除项目",
         "closeWhenEmpty": "移除最后一个项目后关闭暂存面板",
         "mergeDroppedFiles": "把同一次拖入的多个文件合并为一项",
+        "launchAtLogin": "登录时启动 Hamster",
+        "launchAtLoginFailedTitle": "无法更改登录项",
+        "launchAtLoginFailed": "Hamster 无法更新登录项：%@",
+        "launchAtLoginNeedsApproval": "Hamster 已注册，但需要你的批准。请在“系统设置”→“通用”→“登录项”中允许它。",
+        "launchAtLoginInactive": "登录项没有生效。",
+        "launchAtLoginHint": "如果 Hamster 正在从构建目录运行，请把它移到“应用程序”文件夹后再试。",
+        "openLoginItems": "打开登录项",
         "showDataFolder": "显示数据文件夹",
         "closeAllShelves": "关闭所有暂存面板",
         "removeAllTitle": "移除所有暂存面板项目？",
@@ -372,12 +392,18 @@ enum L10n {
         "about": "À propos d’Hamster",
         "quit": "Quitter Hamster",
         "prefsTitle": "Réglages d’Hamster",
-        "prefsIntro": "Faites glisser des fichiers, dossiers, textes, images ou liens vers un bord de l’écran. L’étagère reste là jusqu’à ce que vous en sortiez les éléments.",
         "enableLeft": "Activer le bord gauche de l’écran",
         "enableRight": "Activer le bord droit de l’écran",
         "removeAfterDragOut": "Retirer les éléments après les avoir fait glisser",
         "closeWhenEmpty": "Fermer l’étagère quand son dernier élément est retiré",
         "mergeDroppedFiles": "Regrouper les fichiers déposés ensemble en un seul élément",
+        "launchAtLogin": "Ouvrir Hamster à l’ouverture de session",
+        "launchAtLoginFailedTitle": "Impossible de modifier les éléments d’ouverture",
+        "launchAtLoginFailed": "Hamster n’a pas pu mettre à jour les éléments d’ouverture : %@",
+        "launchAtLoginNeedsApproval": "Hamster est enregistré mais doit être autorisé. Autorisez-le dans Réglages Système → Général → Ouverture.",
+        "launchAtLoginInactive": "L’élément d’ouverture n’a pas été activé.",
+        "launchAtLoginHint": "Si Hamster est exécuté depuis un dossier de compilation, placez-le dans le dossier Applications puis réessayez.",
+        "openLoginItems": "Ouvrir Ouverture",
         "showDataFolder": "Afficher le dossier de données",
         "closeAllShelves": "Fermer toutes les étagères",
         "removeAllTitle": "Retirer tous les éléments des étagères ?",
@@ -444,12 +470,18 @@ enum L10n {
         "about": "Acerca de Hamster",
         "quit": "Salir de Hamster",
         "prefsTitle": "Ajustes de Hamster",
-        "prefsIntro": "Arrastra archivos, carpetas, texto, imágenes o enlaces a un borde de la pantalla. El estante esperará allí hasta que saques los elementos.",
         "enableLeft": "Activar el borde izquierdo de la pantalla",
         "enableRight": "Activar el borde derecho de la pantalla",
         "removeAfterDragOut": "Quitar los elementos después de arrastrarlos",
         "closeWhenEmpty": "Cerrar el estante cuando se quite su último elemento",
         "mergeDroppedFiles": "Combinar los archivos soltados juntos en un solo elemento",
+        "launchAtLogin": "Abrir Hamster al iniciar sesión",
+        "launchAtLoginFailedTitle": "No se pudieron cambiar los ítems de inicio",
+        "launchAtLoginFailed": "Hamster no pudo actualizar los ítems de inicio: %@",
+        "launchAtLoginNeedsApproval": "Hamster está registrado pero necesita tu aprobación. Permítelo en Ajustes del Sistema → General → Ítems de inicio.",
+        "launchAtLoginInactive": "El ítem de inicio no se activó.",
+        "launchAtLoginHint": "Si ejecutas Hamster desde una carpeta de compilación, muévelo a la carpeta Aplicaciones e inténtalo de nuevo.",
+        "openLoginItems": "Abrir ítems de inicio",
         "showDataFolder": "Mostrar carpeta de datos",
         "closeAllShelves": "Cerrar todos los estantes",
         "removeAllTitle": "¿Quitar todos los elementos de los estantes?",
@@ -516,12 +548,18 @@ enum L10n {
         "about": "Об Hamster",
         "quit": "Завершить Hamster",
         "prefsTitle": "Настройки Hamster",
-        "prefsIntro": "Перетащите файлы, папки, текст, изображения или ссылки к краю экрана. Полка будет ждать там, пока вы не заберёте элементы.",
         "enableLeft": "Включить левый край экрана",
         "enableRight": "Включить правый край экрана",
         "removeAfterDragOut": "Удалять элементы после перетаскивания",
         "closeWhenEmpty": "Закрывать полку после удаления последнего элемента",
         "mergeDroppedFiles": "Объединять файлы, перетащенные вместе, в один элемент",
+        "launchAtLogin": "Запускать Hamster при входе",
+        "launchAtLoginFailedTitle": "Не удалось изменить элементы входа",
+        "launchAtLoginFailed": "Hamster не удалось обновить элементы входа: %@",
+        "launchAtLoginNeedsApproval": "Hamster зарегистрирован, но требует вашего одобрения. Разрешите его в «Системных настройках» → «Основные» → «Элементы входа».",
+        "launchAtLoginInactive": "Элемент входа не активировался.",
+        "launchAtLoginHint": "Если Hamster запущен из папки сборки, переместите его в папку «Программы» и повторите попытку.",
+        "openLoginItems": "Открыть элементы входа",
         "showDataFolder": "Показать папку данных",
         "closeAllShelves": "Закрыть все полки",
         "removeAllTitle": "Удалить все элементы с полок?",
@@ -588,12 +626,18 @@ enum L10n {
         "about": "حول Hamster",
         "quit": "إنهاء Hamster",
         "prefsTitle": "إعدادات Hamster",
-        "prefsIntro": "اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى حافة الشاشة. سيبقى الرف هناك حتى تسحب العناصر للخارج.",
         "enableLeft": "تفعيل الحافة اليسرى للشاشة",
         "enableRight": "تفعيل الحافة اليمنى للشاشة",
         "removeAfterDragOut": "إزالة العناصر بعد سحبها للخارج",
         "closeWhenEmpty": "إغلاق الرف عند إزالة آخر عنصر",
         "mergeDroppedFiles": "دمج الملفات التي تُسقط معًا في عنصر واحد",
+        "launchAtLogin": "فتح Hamster عند تسجيل الدخول",
+        "launchAtLoginFailedTitle": "تعذّر تغيير عناصر تسجيل الدخول",
+        "launchAtLoginFailed": "تعذّر على Hamster تحديث عناصر تسجيل الدخول: %@",
+        "launchAtLoginNeedsApproval": "تم تسجيل Hamster لكنه يحتاج إلى موافقتك. اسمح به في إعدادات النظام ← عام ← عناصر تسجيل الدخول.",
+        "launchAtLoginInactive": "لم يتم تفعيل عنصر تسجيل الدخول.",
+        "launchAtLoginHint": "إذا كنت تشغّل Hamster من مجلد البناء، فانقله إلى مجلد التطبيقات ثم حاول مرة أخرى.",
+        "openLoginItems": "فتح عناصر تسجيل الدخول",
         "showDataFolder": "إظهار مجلد البيانات",
         "closeAllShelves": "إغلاق كل الرفوف",
         "removeAllTitle": "إزالة كل عناصر الرفوف؟",

@@ -23,6 +23,7 @@ compile() {
     -sdk "$SDK" \
     -framework AppKit \
     -framework QuickLookThumbnailing \
+    -framework ServiceManagement \
     -framework UniformTypeIdentifiers \
     "$ROOT"/Sources/*.swift \
     -o "$out"

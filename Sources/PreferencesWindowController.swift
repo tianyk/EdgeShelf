@@ -6,12 +6,12 @@ final class PreferencesWindowController: NSWindowController {
 
     var onLanguageChanged: (() -> Void)?
 
-    private let introLabel = NSTextField(wrappingLabelWithString: "")
     private let leftBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let rightBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let removeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let closeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let mergeBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let launchBox = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let languageLabel = NSTextField(labelWithString: "")
     private let languagePopup = NSPopUpButton(frame: .zero, pullsDown: false)
     private let folderButton = NSButton(title: "", target: nil, action: nil)
@@ -20,7 +20,7 @@ final class PreferencesWindowController: NSWindowController {
     init(manager: ShelfManager) {
         self.manager = manager
 
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 340),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 308),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
@@ -38,39 +38,39 @@ final class PreferencesWindowController: NSWindowController {
     private func buildUI() {
         guard let content = window?.contentView else { return }
 
-        introLabel.frame = NSRect(x: 24, y: 268, width: 432, height: 56)
-        introLabel.font = .systemFont(ofSize: 11.5)
-        introLabel.textColor = .secondaryLabelColor
-        content.addSubview(introLabel)
-
-        leftBox.frame = NSRect(x: 24, y: 236, width: 432, height: 22)
+        leftBox.frame = NSRect(x: 24, y: 262, width: 432, height: 22)
         leftBox.target = self
         leftBox.action = #selector(edgesChanged)
         content.addSubview(leftBox)
 
-        rightBox.frame = NSRect(x: 24, y: 210, width: 432, height: 22)
+        rightBox.frame = NSRect(x: 24, y: 236, width: 432, height: 22)
         rightBox.target = self
         rightBox.action = #selector(edgesChanged)
         content.addSubview(rightBox)
 
-        let separator = NSBox(frame: NSRect(x: 24, y: 194, width: 432, height: 1))
+        let separator = NSBox(frame: NSRect(x: 24, y: 220, width: 432, height: 1))
         separator.boxType = .separator
         content.addSubview(separator)
 
-        removeBox.frame = NSRect(x: 24, y: 162, width: 432, height: 22)
+        removeBox.frame = NSRect(x: 24, y: 188, width: 432, height: 22)
         removeBox.target = self
         removeBox.action = #selector(behaviorChanged)
         content.addSubview(removeBox)
 
-        closeBox.frame = NSRect(x: 24, y: 136, width: 432, height: 22)
+        closeBox.frame = NSRect(x: 24, y: 162, width: 432, height: 22)
         closeBox.target = self
         closeBox.action = #selector(behaviorChanged)
         content.addSubview(closeBox)
 
-        mergeBox.frame = NSRect(x: 24, y: 110, width: 432, height: 22)
+        mergeBox.frame = NSRect(x: 24, y: 136, width: 432, height: 22)
         mergeBox.target = self
         mergeBox.action = #selector(behaviorChanged)
         content.addSubview(mergeBox)
+
+        launchBox.frame = NSRect(x: 24, y: 110, width: 432, height: 22)
+        launchBox.target = self
+        launchBox.action = #selector(launchAtLoginChanged)
+        content.addSubview(launchBox)
 
         languageLabel.frame = NSRect(x: 24, y: 82, width: 80, height: 22)
         languageLabel.font = .systemFont(ofSize: 13)
@@ -99,12 +99,12 @@ final class PreferencesWindowController: NSWindowController {
 
     private func localizeUI() {
         window?.title = L10n.prefsTitle
-        introLabel.stringValue = L10n.prefsIntro
         leftBox.title = L10n.enableLeft
         rightBox.title = L10n.enableRight
         removeBox.title = L10n.removeAfterDragOut
         closeBox.title = L10n.closeWhenEmpty
         mergeBox.title = L10n.mergeDroppedFiles
+        launchBox.title = L10n.launchAtLogin
         languageLabel.stringValue = L10n.languageLabel
         folderButton.title = L10n.showDataFolder
         resetButton.title = L10n.closeAllShelves
@@ -135,6 +135,8 @@ final class PreferencesWindowController: NSWindowController {
         removeBox.state = prefs.removeAfterDragOut ? .on : .off
         closeBox.state = prefs.closeWhenEmpty ? .on : .off
         mergeBox.state = prefs.mergeDroppedFiles ? .on : .off
+        // Not a UserDefaults value: the system is the source of truth.
+        launchBox.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     func show() {
@@ -156,6 +158,44 @@ final class PreferencesWindowController: NSWindowController {
         prefs.removeAfterDragOut = removeBox.state == .on
         prefs.closeWhenEmpty = closeBox.state == .on
         prefs.mergeDroppedFiles = mergeBox.state == .on
+    }
+
+    @objc private func launchAtLoginChanged() {
+        let result = LaunchAtLogin.setEnabled(launchBox.state == .on)
+        launchBox.state = LaunchAtLogin.isEnabled ? .on : .off
+
+        switch result {
+        case .success:
+            break
+        case .requiresApproval:
+            showLoginItemsAlert(message: L10n.launchAtLoginNeedsApproval,
+                                openFirst: true)
+        case .failure(let detail):
+            showLoginItemsAlert(message: "\(L10n.launchAtLoginFailed(detail))\n\n\(L10n.launchAtLoginHint)",
+                                openFirst: false)
+        }
+    }
+
+    private func showLoginItemsAlert(message: String, openFirst: Bool) {
+        let alert = NSAlert()
+        alert.messageText = L10n.launchAtLoginFailedTitle
+        alert.informativeText = message
+        alert.alertStyle = openFirst ? .informational : .warning
+        if openFirst {
+            alert.addButton(withTitle: L10n.openLoginItems)
+            alert.addButton(withTitle: L10n.ok)
+        } else {
+            alert.addButton(withTitle: L10n.ok)
+            alert.addButton(withTitle: L10n.openLoginItems)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+        let openItems = openFirst
+            ? response == .alertFirstButtonReturn
+            : response == .alertSecondButtonReturn
+        if openItems {
+            LaunchAtLogin.openLoginItemsSettings()
+        }
     }
 
     @objc private func languageChanged() {

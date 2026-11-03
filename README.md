@@ -44,6 +44,7 @@ diagnosis.
 - Right-click menu: Open, Show in Finder, Copy, Remove — with keyboard
   shortcuts — plus Clear Shelf for the whole shelf.
 - Six UN languages plus “Follow System”.
+- **Launch at Login** through the system Login Items (no helper app or LaunchAgent).
 - No Accessibility, Input Monitoring, or Screen Recording permission required.
 - No `CGWindowListCreate`, no synchronous XPC, no `NSTask` on the main thread.
 - The product name **Hamster** is intentionally never translated. Panel titles,
@@ -146,7 +147,7 @@ with `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`,
   Separate Items, and Remove Group. Turn merging off in Preferences.
 - Drag an item out to Finder, Mail, Slack, etc. The drag uses the original
   path and is a copy operation, so the source file stays where it is.
-- Menu bar → Preferences for edges, behaviour, and language.
+- Menu bar → Preferences for edges, behaviour, startup, and language.
 
 Copies made by older versions are removed on first launch when the original
 still exists. A copy whose original is already gone is kept, because it is the
@@ -193,6 +194,8 @@ they never touch the shelves you actually use.
 11. Drag several files in at once; one group card appears. Drag the group card
     out and all files arrive together. Click it to expand and drag one member
     out on its own. Right-click it for the group actions.
+12. Turn on **Launch at login** in Preferences, confirm Hamster appears under
+    System Settings → General → Login Items, then turn it off again.
 
 ## Known limitations
 
@@ -214,6 +217,9 @@ they never touch the shelves you actually use.
 - Arabic mirrors the shelf header and cards; the preferences window and the
   status menu follow the system layout direction.
 - The app is not notarized. It is built and signed locally.
+- Launch at Login registers the app's current path with macOS. Move Hamster to
+  the Applications folder before enabling it; registering a copy in a build
+  folder may be refused.
 
 ## Project layout
 
@@ -227,6 +233,7 @@ Sources/
   ShelfView.swift                 shelf panel and item cards
   Theme.swift                     metrics, palette, background, tab, empty state
   L10n.swift                      all UI strings and the six language tables
+  LaunchAtLogin.swift             system Login Items registration (SMAppService)
   FileWatcher.swift               kqueue watcher for deletes/renames/moves
   Store.swift                     JSON state + stored image/promise payloads
   Models.swift                    ShelfItem/ShelfState/ShelfEdge
