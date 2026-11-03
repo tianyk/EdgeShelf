@@ -2,11 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-APP="$ROOT/build/EdgeShelf.app"
+APP="$ROOT/build/Hamster.app"
 TMP="$ROOT/build/.tmp"
 SDK="$(xcrun --show-sdk-path)"
 UNIVERSAL="${UNIVERSAL:-0}"
 
+# Remove only the obsolete generated bundle after the Hamster rename.
+rm -rf "$ROOT/build/EdgeShelf.app"
 rm -rf "$APP" "$TMP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$TMP"
 
@@ -27,13 +29,13 @@ compile() {
 }
 
 if [[ "$UNIVERSAL" == "1" ]]; then
-  compile arm64 "$TMP/EdgeShelf-arm64"
-  compile x86_64 "$TMP/EdgeShelf-x86_64"
-  lipo -create "$TMP/EdgeShelf-arm64" "$TMP/EdgeShelf-x86_64" \
-    -output "$APP/Contents/MacOS/EdgeShelf"
-  lipo -info "$APP/Contents/MacOS/EdgeShelf"
+  compile arm64 "$TMP/Hamster-arm64"
+  compile x86_64 "$TMP/Hamster-x86_64"
+  lipo -create "$TMP/Hamster-arm64" "$TMP/Hamster-x86_64" \
+    -output "$APP/Contents/MacOS/Hamster"
+  lipo -info "$APP/Contents/MacOS/Hamster"
 else
-  compile "$(uname -m)" "$APP/Contents/MacOS/EdgeShelf"
+  compile "$(uname -m)" "$APP/Contents/MacOS/Hamster"
 fi
 
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
@@ -45,4 +47,4 @@ rm -rf "$TMP"
 
 echo "Built: $APP"
 echo "Run with: open \"$APP\""
-echo "Self-test: \"$APP/Contents/MacOS/EdgeShelf\" --self-test"
+echo "Self-test: \"$APP/Contents/MacOS/Hamster\" --self-test"

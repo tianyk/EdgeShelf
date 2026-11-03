@@ -24,12 +24,12 @@ jobs:
         run: UNIVERSAL=1 ./build.sh
 
       - name: Self-test
-        run: build/EdgeShelf.app/Contents/MacOS/EdgeShelf --self-test
+        run: build/Hamster.app/Contents/MacOS/Hamster --self-test
 
       - name: Verify architectures
         run: |
-          lipo -info build/EdgeShelf.app/Contents/MacOS/EdgeShelf
-          ARCHS="$(lipo -archs build/EdgeShelf.app/Contents/MacOS/EdgeShelf)"
+          lipo -info build/Hamster.app/Contents/MacOS/Hamster
+          ARCHS="$(lipo -archs build/Hamster.app/Contents/MacOS/Hamster)"
           echo "Built architectures: ${ARCHS}"
           echo "${ARCHS}" | grep -qw arm64
           echo "${ARCHS}" | grep -qw x86_64
@@ -39,19 +39,19 @@ jobs:
           set -euo pipefail
           VERSION="${GITHUB_REF_NAME//\//-}"
           mkdir -p dist
-          ditto -c -k --keepParent build/EdgeShelf.app "dist/EdgeShelf-${VERSION}.zip"
+          ditto -c -k --keepParent build/Hamster.app "dist/Hamster-${VERSION}.zip"
           hdiutil create \
-            -volname "EdgeShelf" \
-            -srcfolder build/EdgeShelf.app \
+            -volname "Hamster" \
+            -srcfolder build/Hamster.app \
             -ov -format UDZO \
-            "dist/EdgeShelf-${VERSION}.dmg"
+            "dist/Hamster-${VERSION}.dmg"
           shasum -a 256 dist/* > "dist/SHA256SUMS-${VERSION}.txt"
           ls -lh dist
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EdgeShelf-${{ github.sha }}
+          name: Hamster-${{ github.sha }}
           path: dist/*
           if-no-files-found: error
           retention-days: 14

@@ -44,15 +44,14 @@ enum ShelfTheme {
         }
     }
 
-    // Warm terracotta accent. Chosen to stand out against the paper panel,
-    // the graphite panel, and the blue desktop wallpaper.
-    private static let accentLight = NSColor(calibratedRed: 0.80, green: 0.43, blue: 0.18, alpha: 1)
-    private static let accentDark = NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.32, alpha: 1)
+    // Share the hamster artwork's caramel and apricot; text uses darker ink.
+    private static let accentLight = HamsterPalette.caramel
+    private static let accentDark = HamsterPalette.apricot
 
     static let accent = dynamic(light: accentLight, dark: accentDark)
     static let accentText = dynamic(
-        light: NSColor(calibratedRed: 0.62, green: 0.28, blue: 0.08, alpha: 1),
-        dark: NSColor(calibratedRed: 1.00, green: 0.76, blue: 0.55, alpha: 1)
+        light: HamsterPalette.ink,
+        dark: HamsterPalette.paleApricot
     )
     static let accentSoft = dynamic(
         light: accentLight.withAlphaComponent(0.14),
@@ -63,30 +62,25 @@ enum ShelfTheme {
         dark: accentDark.withAlphaComponent(0.65)
     )
 
-    /// Warm paper in light mode, graphite in dark mode.
+    /// Cream in light mode, warm charcoal in dark mode.
     static let panel = dynamic(
-        light: NSColor(calibratedRed: 0.972, green: 0.968, blue: 0.954, alpha: 0.985),
-        dark: NSColor(calibratedRed: 0.105, green: 0.105, blue: 0.115, alpha: 0.985)
+        light: NSColor(calibratedRed: 1.0, green: 0.975, blue: 0.935, alpha: 0.985),
+        dark: NSColor(calibratedRed: 0.125, green: 0.112, blue: 0.102, alpha: 0.985)
     )
 
     static let card = dynamic(
-        light: NSColor(calibratedWhite: 1.0, alpha: 0.92),
-        dark: NSColor(calibratedRed: 0.165, green: 0.165, blue: 0.178, alpha: 0.96)
+        light: NSColor(calibratedRed: 1, green: 0.993, blue: 0.975, alpha: 0.96),
+        dark: NSColor(calibratedRed: 0.185, green: 0.165, blue: 0.145, alpha: 0.96)
     )
 
     static let cardHover = dynamic(
         light: NSColor(calibratedWhite: 1.0, alpha: 1.0),
-        dark: NSColor(calibratedRed: 0.215, green: 0.215, blue: 0.232, alpha: 1.0)
+        dark: NSColor(calibratedRed: 0.245, green: 0.215, blue: 0.185, alpha: 1.0)
     )
 
     static let border = dynamic(
         light: NSColor.black.withAlphaComponent(0.075),
         dark: NSColor.white.withAlphaComponent(0.10)
-    )
-
-    static let stripe = dynamic(
-        light: NSColor.black.withAlphaComponent(0.022),
-        dark: NSColor.white.withAlphaComponent(0.030)
     )
 
     static let emptyFill = dynamic(
@@ -95,13 +89,13 @@ enum ShelfTheme {
     )
 
     static let tabTop = dynamic(
-        light: accentLight.withAlphaComponent(0.98),
+        light: HamsterPalette.paleApricot,
         dark: accentDark.withAlphaComponent(1.0)
     )
 
     static let tabBottom = dynamic(
-        light: accentLight.withAlphaComponent(0.58),
-        dark: accentDark.withAlphaComponent(0.62)
+        light: HamsterPalette.apricot,
+        dark: HamsterPalette.caramel
     )
 }
 
@@ -155,19 +149,6 @@ final class ShelfBackgroundView: NSView {
             NSColor.white.withAlphaComponent(0.0),
         ])
         gradient?.draw(in: rect, angle: -90)
-
-        // Dropshelf-style diagonal stripes, deliberately very quiet.
-        ShelfTheme.stripe.setStroke()
-        let spacing: CGFloat = 14
-        var offset = -bounds.height
-        while offset < bounds.width + bounds.height {
-            let line = NSBezierPath()
-            line.move(to: NSPoint(x: offset, y: 0))
-            line.line(to: NSPoint(x: offset + bounds.height, y: bounds.height))
-            line.lineWidth = 1
-            line.stroke()
-            offset += spacing
-        }
 
         NSGraphicsContext.restoreGraphicsState()
 

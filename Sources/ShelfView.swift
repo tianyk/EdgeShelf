@@ -148,7 +148,11 @@ enum ThumbnailLoader {
                                     y: (rect.height - imageSize.height) / 2 + 6,
                                     width: imageSize.width,
                                     height: imageSize.height)
-                image.draw(in: target)
+                // These thumbnails have fixed coloured backgrounds in both themes.
+                // Resolve the white symbol consistently when rendering offscreen.
+                NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
+                    image.draw(in: target)
+                }
             }
 
             if !label.isEmpty {
@@ -442,7 +446,7 @@ final class ItemView: NSView, NSDraggingSource, NSMenuItemValidation {
     private func openTextItem() {
         guard let text = item.text, !text.isEmpty else { return }
         let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("EdgeShelf", isDirectory: true)
+            .appendingPathComponent("Hamster", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let base = item.displayName.isEmpty ? "Text" : item.displayName
         let safe = base.replacingOccurrences(of: "/", with: "-").prefix(60)
@@ -1097,7 +1101,8 @@ final class ShelfView: NSView {
     private let contentContainer = FlippedView()
     private let background = ShelfBackgroundView()
     private let headerIcon = NSImageView()
-    private let titleLabel = NSTextField(labelWithString: L10n.shelf)
+    private let hamsterAnimator = HamsterAnimator()
+    private let titleLabel = NSTextField(labelWithString: L10n.appName)
     private let countBackground = NSView()
     private let countLabel = NSTextField(labelWithString: "")
     private let scrollView = NSScrollView()
@@ -1123,11 +1128,10 @@ final class ShelfView: NSView {
         background.autoresizingMask = [.width, .height]
         contentContainer.addSubview(background)
 
-        headerIcon.image = AppIcons.status
-        headerIcon.contentTintColor = .secondaryLabelColor
+        headerIcon.image = AppIcons.hamster(fullness: 0, size: 32)
         headerIcon.imageScaling = .scaleProportionallyUpOrDown
         headerIcon.setAccessibilityElement(false)
-        headerIcon.setAccessibilityLabel(L10n.shelf)
+        headerIcon.setAccessibilityLabel(L10n.appName)
         contentContainer.addSubview(headerIcon)
 
         titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
@@ -1206,7 +1210,7 @@ final class ShelfView: NSView {
         // NSTextField draws a single line from the top of its frame, so the
         // label must be exactly one line tall; a taller frame would push the
         // text up and leave the icon looking low.
-        let iconSide: CGFloat = 17
+        let iconSide: CGFloat = 32
         let iconY = (ShelfMetrics.headerHeight - iconSide) / 2
         let badgeY = (ShelfMetrics.headerHeight - badgeHeight) / 2
 
@@ -1224,7 +1228,7 @@ final class ShelfView: NSView {
         } else {
             headerIcon.frame = NSRect(x: 14, y: iconY, width: iconSide, height: iconSide)
             titleLabel.sizeToFit()
-            titleLabel.frame = NSRect(x: 39,
+            titleLabel.frame = NSRect(x: headerIcon.frame.maxX + 8,
                                       y: (ShelfMetrics.headerHeight - titleLabel.frame.height) / 2,
                                       width: titleLabel.frame.width,
                                       height: titleLabel.frame.height)
@@ -1271,8 +1275,11 @@ final class ShelfView: NSView {
         let previousItemIDs = Set(itemViews.keys)
         let previousGroupIDs = Set(groupViews.keys)
 
-        titleLabel.stringValue = L10n.shelf
+        titleLabel.stringValue = L10n.appName
         titleLabel.sizeToFit()
+        hamsterAnimator.update(count: items.count) { [weak self] fullness in
+            self?.headerIcon.image = AppIcons.hamster(fullness: fullness, size: 32)
+        }
         countLabel.stringValue = "\(items.count)"
         countBackground.isHidden = items.isEmpty
 

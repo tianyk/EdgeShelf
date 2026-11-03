@@ -4,6 +4,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var manager: ShelfManager!
     private var dragMonitor: DragMonitor!
     private var statusItem: NSStatusItem!
+    private let hamsterAnimator = HamsterAnimator()
     private var preferencesController: PreferencesWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -24,6 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dragMonitor.start()
 
         setupStatusItem()
+        manager.onItemCountChange = { [weak self] count in
+            self?.updateHamster(count: count)
+        }
+        updateHamster(count: manager.totalItemCount)
 
         if CommandLine.arguments.contains("--demo")
             || CommandLine.arguments.contains("--snapshot")
@@ -97,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     return
                 }
                 let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("EdgeShelf-IngestGroup-\(UUID().uuidString)", isDirectory: true)
+                    .appendingPathComponent("Hamster-IngestGroup-\(UUID().uuidString)", isDirectory: true)
                 try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 let urls = (0..<3).map { index -> URL in
                     let url = directory.appendingPathComponent("file-\(index).txt")
@@ -185,8 +190,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         view.cacheDisplay(in: view.bounds, to: rep)
         if let data = rep.representation(using: .png, properties: [:]) {
-            try? data.write(to: URL(fileURLWithPath: "/tmp/edgeshelf-snapshot.png"))
-            print("EdgeShelf snapshot: /tmp/edgeshelf-snapshot.png")
+            try? data.write(to: URL(fileURLWithPath: "/tmp/hamster-snapshot.png"))
+            print("Hamster snapshot: /tmp/hamster-snapshot.png")
         }
         NSApp.terminate(nil)
     }
@@ -201,6 +206,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         true
+    }
+
+    private func updateHamster(count: Int) {
+        hamsterAnimator.update(count: count) { [weak self] fullness in
+            self?.statusItem.button?.image = AppIcons.hamster(fullness: fullness, size: 18, template: true)
+        }
     }
 
     private func setupStatusItem() {

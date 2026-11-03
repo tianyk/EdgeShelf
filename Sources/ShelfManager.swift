@@ -10,7 +10,11 @@ final class ShelfManager {
     private let store = Store.shared
     private let prefs = Preferences.shared
     private let ioQueue = DispatchQueue(label: "com.doge.edgeshelf.io", qos: .utility)
-    private var states: [ShelfKey: ShelfState] = [:]
+    var onItemCountChange: ((Int) -> Void)?
+    var totalItemCount: Int { states.values.reduce(0) { $0 + $1.items.count } }
+    private var states: [ShelfKey: ShelfState] = [:] {
+        didSet { onItemCountChange?(totalItemCount) }
+    }
     /// Groups the user has expanded. The membership itself lives on
     /// `ShelfItem.groupID`; this is only the current presentation state.
     private var expandedGroups: Set<UUID> = []
@@ -71,7 +75,7 @@ final class ShelfManager {
             // item folder is therefore unreferenced, and pruning now would
             // delete stored images and promised files the user may still want.
             // Keep them and let the next successful save take over.
-            NSLog("EdgeShelf: skipping the item cleanup after an unreadable shelves.json")
+            NSLog("Hamster: skipping the item cleanup after an unreadable shelves.json")
         } else {
             migrateLegacyCopies()
             let referenced = Set(states.values.flatMap { state in
@@ -158,7 +162,7 @@ final class ShelfManager {
             states[key] = state
         }
         if changed {
-            NSLog("EdgeShelf: switched legacy item copies to direct references")
+            NSLog("Hamster: switched legacy item copies to direct references")
             save()
         }
     }
@@ -288,7 +292,7 @@ final class ShelfManager {
                   item.originalPath == entry.originalPath,
                   item.relativePath == entry.relativePath,
                   entry.generation == nil || watchGenerations[item.id] == entry.generation else { continue }
-            NSLog("EdgeShelf: removing \(entry.name) because its file is gone")
+            NSLog("Hamster: removing \(entry.name) because its file is gone")
             remove(item: item, from: entry.key)
         }
         ensureFileWatchers()
@@ -645,7 +649,7 @@ final class ShelfManager {
             if wasRevealed {
                 setShelfWindowLevel(level)
             } else {
-                NSLog("EdgeShelf: Show Desktop is active; rebuilding the edge windows")
+                NSLog("Hamster: Show Desktop is active; rebuilding the edge windows")
                 rebuildWindowsNow(expandNonEmpty: false)
             }
         } else if desktopRevealLevel != nil, !isDragging {
@@ -700,7 +704,7 @@ final class ShelfManager {
         windows.removeAll()
 
         for screen in NSScreen.screens {
-            let screenID = screen.edgeShelfDisplayID
+            let screenID = screen.hamsterDisplayID
             for edge in prefs.enabledEdges {
                 let key = ShelfKey(screenID: screenID, edge: edge)
                 let count = displayCount(for: key)
@@ -904,7 +908,7 @@ final class ShelfManager {
         var best: (key: ShelfKey, distance: CGFloat)?
 
         for screen in NSScreen.screens {
-            let screenID = screen.edgeShelfDisplayID
+            let screenID = screen.hamsterDisplayID
             for edge in prefs.enabledEdges {
                 let distance: CGFloat
                 let inside: Bool
@@ -1123,7 +1127,7 @@ final class ShelfManager {
             guard let self else { return }
             self.pendingItems.remove(item.id)
             guard error == nil else {
-                NSLog("EdgeShelf: file promise failed: \(String(describing: error))")
+                NSLog("Hamster: file promise failed: \(String(describing: error))")
                 self.remove(item: item, from: key)
                 NSSound.beep()
                 return
@@ -1315,7 +1319,7 @@ final class ShelfManager {
     /// Used by `--demo` to exercise the shelf UI without a mouse drag.
     func addDemoItems() {
         guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
-        let key = ShelfKey(screenID: screen.edgeShelfDisplayID, edge: .left)
+        let key = ShelfKey(screenID: screen.hamsterDisplayID, edge: .left)
         var state = ensureState(for: key)
 
         state.items.append(ShelfItem(kind: .text,
@@ -1350,13 +1354,13 @@ final class ShelfManager {
         // collapsed summary card and, with `--expand-groups`, its members.
         if CommandLine.arguments.contains("--snapshot-groups") {
             let directory = URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("EdgeShelf-GroupDemo", isDirectory: true)
+                .appendingPathComponent("Hamster-GroupDemo", isDirectory: true)
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let groupID = UUID()
             let names = ["Roadmap.pdf", "Budget.xlsx", "Notes.md"]
             for name in names {
                 let url = directory.appendingPathComponent(name)
-                let body = "EdgeShelf group demo: \(name)"
+                let body = "Hamster group demo: \(name)"
                 try? body.write(to: url, atomically: true, encoding: .utf8)
                 let size = Int64(body.utf8.count)
                 state.items.append(ShelfItem(kind: .file,

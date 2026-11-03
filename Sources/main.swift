@@ -21,6 +21,24 @@ private enum SelfTest {
     }
 
     static func run() {
+        // Brand rename must keep existing data and choose Hamster for fresh installs.
+        let support = FileManager.default.temporaryDirectory.appendingPathComponent("Hamster-StoreTest-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: support) }
+        precondition(Store.dataRoot(in: support).lastPathComponent == "Hamster")
+        do {
+            let legacy = support.appendingPathComponent("EdgeShelf")
+            try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+            let marker = legacy.appendingPathComponent("existing-data.txt")
+            try Data("preserved".utf8).write(to: marker)
+            precondition(Store.dataRoot(in: support).path == legacy.path)
+            try FileManager.default.createDirectory(at: support.appendingPathComponent("Hamster"), withIntermediateDirectories: true)
+            precondition(Store.dataRoot(in: support).path == legacy.path)
+            let preserved = try Data(contentsOf: marker)
+            precondition(preserved == Data("preserved".utf8))
+        } catch {
+            failSelfTest("brand rename data compatibility: \(error)")
+        }
+
         var state = ShelfState(key: ShelfKey(screenID: "1", edge: .left))
         state.items.append(ShelfItem(kind: .text,
                                      displayName: "hello",
@@ -48,12 +66,12 @@ private enum SelfTest {
             precondition(decoded.items[2].groupID == groupID)
             precondition(decoded.key.edge == .left)
         } catch {
-            print("EdgeShelf self-test: FAILED — \(error)")
+            print("Hamster self-test: FAILED — \(error)")
             exit(1)
         }
 
         // Pasteboard round-trip (file URL + plain text).
-        let testPath = NSTemporaryDirectory() + "edgeshelf-selftest.txt"
+        let testPath = NSTemporaryDirectory() + "hamster-selftest.txt"
         try? "hello".write(toFile: testPath, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: testPath) }
 
@@ -122,7 +140,7 @@ private enum SelfTest {
         // Group rows: collapsed, expanded, and the single-member fallback.
         runGroupingTests()
 
-        print("EdgeShelf self-test: OK")
+        print("Hamster self-test: OK")
         exit(0)
     }
 
@@ -176,7 +194,7 @@ private enum SelfTest {
 
     private static func runStoreRecoveryTests() {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("EdgeShelf-SelfTest-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Hamster-SelfTest-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         let store = Store(rootURL: root)
@@ -210,14 +228,14 @@ private enum SelfTest {
     }
 
     private static func failSelfTest(_ message: String) -> Never {
-        print("EdgeShelf self-test: FAILED — \(message)")
+        print("Hamster self-test: FAILED — \(message)")
         exit(1)
     }
 
     private static func runFileWatcherTests() {
         let root = URL(fileURLWithPath: NSTemporaryDirectory())
             .resolvingSymlinksInPath()
-            .appendingPathComponent("EdgeShelf-Watcher-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("Hamster-Watcher-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
@@ -340,7 +358,7 @@ private enum SelfTest {
         }
 
         func fail(_ message: String) -> Never {
-            print("EdgeShelf self-test: FAILED — \(message)")
+            print("Hamster self-test: FAILED — \(message)")
             exit(1)
         }
 
@@ -396,7 +414,7 @@ private enum SelfTest {
 
         // A file URL must stay a file, so dragging it back is a no-op.
         let fileBoard = board("file")
-        fileBoard.writeObjects([URL(fileURLWithPath: "/tmp/edgeshelf-classify.txt") as NSURL])
+        fileBoard.writeObjects([URL(fileURLWithPath: "/tmp/hamster-classify.txt") as NSURL])
         switch IngestPayload.classify(fileBoard) {
         case .some(.urls(let urls)) where urls.first?.isFileURL == true: break
         default: fail("a file URL must classify as a file URL")
@@ -437,7 +455,7 @@ if CommandLine.arguments.contains("--self-test") {
 
 let running = NSRunningApplication.runningApplications(withBundleIdentifier: "com.doge.edgeshelf")
 if running.count > 1 {
-    print("EdgeShelf is already running.")
+    print("Hamster is already running.")
     exit(0)
 }
 

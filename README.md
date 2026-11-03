@@ -1,12 +1,12 @@
-# EdgeShelf
+# Hamster
 
 **English** | [中文](README.zh-CN.md)
 
 [![Build](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml/badge.svg)](https://github.com/tianyk/EdgeShelf/actions/workflows/build.yml)
 
-![EdgeShelf](docs/screenshot-en.png)
+![Hamster](docs/screenshot-en.png)
 
-EdgeShelf is a small drag-and-drop shelf for macOS 26/27 — a clean-room
+Hamster is a small drag-and-drop shelf for macOS 26/27 — a clean-room
 reimplementation of [Dropshelf](https://pilotmoon.com/dropshelf/).
 
 Drag a file, folder, image, link, or text snippet to the left or right edge
@@ -30,11 +30,11 @@ diagnosis.
   Its menu offers Open All, Show All in Finder, Copy All, Split into Separate
   Items, and Remove Group. The grouping can be turned off in Preferences.
 - Pasted images and files received through a file promise are stored in
-  `~/Library/Application Support/EdgeShelf/Items`; everything else stays in
+  `~/Library/Application Support/Hamster/Items`; everything else stays in
   place.
 - Dynamic shelf height (220–560 pt), frozen while a drag is in flight.
-- Warm paper light theme and graphite dark theme, with a terracotta accent,
-  quiet diagonal stripes, and a soft outer shadow.
+- Cream light theme and warm charcoal dark theme, with caramel/apricot accents
+  shared with the hamster icon, a clean background, and a soft outer shadow.
 - 64 pt cards with type-coloured thumbnails, real image previews, file name,
   type, and size; hover reveals the remove button.
 - Collapses to an 8 × 96 pt gradient tab at the edge as soon as the pointer
@@ -46,7 +46,9 @@ diagnosis.
 - Six UN languages plus “Follow System”.
 - No Accessibility, Input Monitoring, or Screen Recording permission required.
 - No `CGWindowListCreate`, no synchronous XPC, no `NSTask` on the main thread.
-- The product name **EdgeShelf** is intentionally never translated.
+- The product name **Hamster** is intentionally never translated. Panel titles,
+  menu-bar tooltips, and app names use Hamster in every language; “shelf” only
+  describes the temporary storage surface.
 
 ## Languages
 
@@ -72,20 +74,40 @@ Arabic preview: [`docs/screenshot-ar.png`](docs/screenshot-ar.png).
 
 - 300 pt panel; height follows the item count (220–560 pt) and is frozen while
   a drag is in flight.
-- Warm paper light theme and graphite dark theme, with a terracotta accent,
-  very quiet diagonal stripes, and a soft outer shadow.
+- Cream light theme and warm charcoal dark theme, with caramel/apricot accents
+  shared with the hamster icon, a clean background, and a soft outer shadow.
 - 64 pt item cards with a type-coloured thumbnail, file name, type, and size;
   hover reveals the remove button.
-- Collapses to an 8 × 96 pt terracotta gradient tab at the edge with a soft
+- Collapses to an 8 × 96 pt apricot gradient tab at the edge with a soft
   glow; hover the edge to expand. Preview: [`docs/tab.png`](docs/tab.png).
 - All user-facing copy lives in [`Sources/L10n.swift`](Sources/L10n.swift).
 
+### Hamster icons
+
+- The app icon stays fixed. The menu-bar glyph and larger shelf-header avatar
+  change cheeks: **0 items = empty, 1–3 = slightly full, 4+ = full**.
+- The menu bar counts items across all shelves; each header counts its own shelf.
+  Files inside groups count individually. Dragging out does not reduce the count
+  while the items remain on the shelf.
+- State changes use a 0.28-second transition, with fixed image bounds and no idle
+  animation. Reduce Motion switches states immediately.
+- Shared brand colours and vector artwork: `Sources/AppIcons.swift`.
+  Interface colours: `Sources/Theme.swift`. Regenerate the fixed icon with
+  `bash Tools/make-app-icon.sh` before building.
+- Dark-mode preview: [screenshot-dark.png](docs/screenshot-dark.png).
+
 ## Build
+
+The product, app bundle, executable, ZIP, and DMG are named **Hamster**.
+The GitHub repository URL and internal bundle identifier (`com.doge.edgeshelf`)
+remain unchanged to preserve links, preferences, and app identity. Existing
+`~/Library/Application Support/EdgeShelf` data is reused in place; new installs
+use `~/Library/Application Support/Hamster`.
 
 ```bash
 ./build.sh              # current architecture
 UNIVERSAL=1 ./build.sh  # arm64 + x86_64 universal
-open build/EdgeShelf.app
+open build/Hamster.app
 ```
 
 Requires Xcode 26 (or the matching command line tools). The app is ad-hoc
@@ -95,7 +117,7 @@ signed. On another Mac, right-click → Open the first time.
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml) builds a
 universal app on every push to `main` and every pull request, runs the
-self-test, and uploads `EdgeShelf-<sha>.zip`, `.dmg`, and SHA-256 checksums as
+self-test, and uploads `Hamster-<sha>.zip`, `.dmg`, and SHA-256 checksums as
 a workflow artifact.
 
 Push a tag to create a GitHub Release with the same assets:
@@ -134,24 +156,24 @@ only remaining content.
 
 ```bash
 # Data model + pasteboard + stored payloads + file watcher
-build/EdgeShelf.app/Contents/MacOS/EdgeShelf --self-test
+build/Hamster.app/Contents/MacOS/Hamster --self-test
 
 # Add demo items and show the left shelf
-open build/EdgeShelf.app --args --demo
+open build/Hamster.app --args --demo
 
-# Render the shelf to /tmp/edgeshelf-snapshot.png without screen capture
-build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot
+# Render the shelf to /tmp/hamster-snapshot.png without screen capture
+build/Hamster.app/Contents/MacOS/Hamster --snapshot
 
 # Render a collapsed and an expanded group card
-build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups
-build/EdgeShelf.app/Contents/MacOS/EdgeShelf --snapshot-groups --expand-groups
+build/Hamster.app/Contents/MacOS/Hamster --snapshot-groups
+build/Hamster.app/Contents/MacOS/Hamster --snapshot-groups --expand-groups
 
 # Force a language for a screenshot or manual check
-build/EdgeShelf.app/Contents/MacOS/EdgeShelf --lang en --snapshot --snapshot-many
+build/Hamster.app/Contents/MacOS/Hamster --lang en --snapshot --snapshot-many
 ```
 
 `--demo`, the `--snapshot*` modes, `--self-test` and the `--debug-*`
-printers run against a throwaway store under `$TMPDIR/EdgeShelf-Debug`, so
+printers run against a throwaway store under `$TMPDIR/Hamster-Debug`, so
 they never touch the shelves you actually use.
 
 ## Manual checklist

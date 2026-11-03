@@ -2,7 +2,7 @@ import AppKit
 
 /// The confirmation dialogs shown before a shelf is emptied.
 ///
-/// Clearing removes items and deletes only files EdgeShelf itself stored
+/// Clearing removes items and deletes only files Hamster itself stored
 /// (pasted images, promised files, and legacy copies). User files are never
 /// touched. It cannot be undone for text, links and images, so every entry
 /// point asks the same question with the same wording.

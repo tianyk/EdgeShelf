@@ -66,16 +66,16 @@ reimplementing the window handling.
   screen (0, 322), layer 8, alpha 1, showing a yellow/black striped
   placeholder. It survived mouse-up and a Finder restart.
 - While that window existed, a drop at the left edge was captured by it and
-  the drag image stayed stuck on screen; EdgeShelf never received
+  the drag image stayed stuck on screen; Hamster never received
   `draggingEntered`.
 - Killing Dropshelf (pid 86736) removed the window, and the same drag then
-  reached EdgeShelf normally.
+  reached Hamster normally.
 
 That is a concrete instance of the stuck drag-destination state, not just a
 theory. The original app can leave a trigger window alive after a drag and
 then sit in front of every later drop.
 
-## What EdgeShelf does differently
+## What Hamster does differently
 
 - Every shelf window is created once, at a fixed frame, before any drag
   starts. Its frame never changes during a drag.
@@ -111,5 +111,5 @@ Possible, but invasive:
    `NSEvent.pressedMouseButtons != 0` to the next run-loop turn.
 3. Re-grant Accessibility/Input Monitoring (the signature change resets TCC).
 
-That is a research project with a fragile result. EdgeShelf is the safer
+That is a research project with a fragile result. Hamster is the safer
 path and the source is here to change.

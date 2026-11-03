@@ -57,7 +57,7 @@ struct ShelfItem: Codable, Identifiable, Equatable {
     /// with its own watcher, so deleting one file only removes that card.
     var groupID: UUID?
     /// Path relative to the store's Items directory. Only used for content
-    /// EdgeShelf owns: pasted images, promised files, and legacy copies.
+    /// Hamster owns: pasted images, promised files, and legacy copies.
     var relativePath: String?
     /// Original location for a Finder drop. The shelf references this path
     /// instead of copying it; when it disappears, the item leaves the shelf.
@@ -143,7 +143,7 @@ struct ShelfState: Codable {
 // MARK: - Screen helpers
 
 extension NSScreen {
-    var edgeShelfDisplayID: String {
+    var hamsterDisplayID: String {
         let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
         return String(number?.uint32Value ?? 0)
     }

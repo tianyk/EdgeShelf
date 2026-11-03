@@ -1,12 +1,12 @@
 import AppKit
 
 /// Disk layout:
-///   ~/Library/Application Support/EdgeShelf/
+///   ~/Library/Application Support/Hamster/
 ///     shelves.json
 ///     Items/<item-uuid>/<file>
 ///
 /// Finder drops are referenced in place; the shelf never copies them. Items/
-/// holds only content EdgeShelf has to own: pasted image data, files received
+/// holds only content Hamster has to own: pasted image data, files received
 /// through an `NSFilePromiseReceiver` (which have no source path), and copies
 /// written by older versions. State writes run on a serial background queue;
 /// nothing here touches AppKit.
@@ -37,12 +37,20 @@ final class Store {
         let fileManager = FileManager.default
         if isEphemeral {
             let ephemeral = URL(fileURLWithPath: NSTemporaryDirectory())
-                .appendingPathComponent("EdgeShelf-Debug", isDirectory: true)
+                .appendingPathComponent("Hamster-Debug", isDirectory: true)
             try? fileManager.removeItem(at: ephemeral)
             return ephemeral
         }
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("EdgeShelf", isDirectory: true)
+        // Continue using an existing legacy store in place, preserving references
+        // and avoiding data duplication. New installations use the brand name.
+        return dataRoot(in: appSupport)
+    }
+
+    static func dataRoot(in appSupport: URL) -> URL {
+        let legacy = appSupport.appendingPathComponent("EdgeShelf", isDirectory: true)
+        if FileManager.default.fileExists(atPath: legacy.path) { return legacy }
+        return appSupport.appendingPathComponent("Hamster", isDirectory: true)
     }
 
     /// Also used by the self-test, which needs a directory of its own instead
@@ -76,12 +84,12 @@ final class Store {
             return try decoder.decode([ShelfState].self, from: data)
         } catch {
             loadFailed = true
-            NSLog("EdgeShelf: could not decode shelves.json: \(error)")
+            NSLog("Hamster: could not decode shelves.json: \(error)")
             let stamp = ISO8601DateFormatter().string(from: Date())
                 .replacingOccurrences(of: ":", with: "-")
             let backup = rootURL.appendingPathComponent("shelves.corrupt-\(stamp).json")
             try? fileManager.moveItem(at: stateURL, to: backup)
-            NSLog("EdgeShelf: moved the unreadable file to \(backup.lastPathComponent)")
+            NSLog("Hamster: moved the unreadable file to \(backup.lastPathComponent)")
             return []
         }
     }
@@ -103,7 +111,7 @@ final class Store {
                     try self.fileManager.createDirectory(at: self.rootURL, withIntermediateDirectories: true)
                     try data.write(to: self.stateURL, options: .atomic)
                 } catch {
-                    NSLog("EdgeShelf: save failed: \(error)")
+                    NSLog("Hamster: save failed: \(error)")
                 }
             }
         }
@@ -160,7 +168,7 @@ final class Store {
             try data.write(to: url, options: .atomic)
             return "\(folderName)/\(name)"
         } catch {
-            NSLog("EdgeShelf: write failed: \(error)")
+            NSLog("Hamster: write failed: \(error)")
             return nil
         }
     }

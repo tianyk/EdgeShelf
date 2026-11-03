@@ -40,7 +40,7 @@ enum AppLanguage: String, CaseIterable {
 }
 
 extension Notification.Name {
-    static let edgeShelfLanguageDidChange = Notification.Name("com.doge.edgeshelf.languageDidChange")
+    static let hamsterLanguageDidChange = Notification.Name("com.doge.edgeshelf.languageDidChange")
 }
 
 // MARK: - Strings
@@ -73,7 +73,7 @@ enum L10n {
     static func setLanguage(_ language: AppLanguage) {
         selectedLanguage = language
         override = nil
-        NotificationCenter.default.post(name: .edgeShelfLanguageDidChange, object: nil)
+        NotificationCenter.default.post(name: .hamsterLanguageDidChange, object: nil)
     }
 
     private static func systemLanguage() -> AppLanguage {
@@ -96,11 +96,10 @@ enum L10n {
         String(format: string(key), arguments: arguments)
     }
 
-    // Product name.
-    static let appName = "EdgeShelf"
+    // Product name is deliberately independent of the selected language.
+    static let appName = "Hamster"
 
     // Chrome / empty state.
-    static var shelf: String { string("shelf") }
     static var statusTooltip: String { string("statusTooltip") }
     static var dropHere: String { string("dropHere") }
     static var dropTypes: String { string("dropTypes") }
@@ -195,8 +194,7 @@ enum L10n {
     ]
 
     private static let english: [String: String] = [
-        "shelf": "Shelf",
-        "statusTooltip": "EdgeShelf — drag items to a screen edge",
+        "statusTooltip": "Hamster — drag items to a screen edge",
         "dropHere": "Drop anything here",
         "dropTypes": "Files · Folders · Text · Links",
         "copying": "Copying…",
@@ -227,9 +225,9 @@ enum L10n {
         "showShelves": "Show Shelves",
         "hideEmptyShelves": "Hide Empty Shelves",
         "preferences": "Preferences…",
-        "about": "About EdgeShelf",
-        "quit": "Quit EdgeShelf",
-        "prefsTitle": "EdgeShelf Preferences",
+        "about": "About Hamster",
+        "quit": "Quit Hamster",
+        "prefsTitle": "Hamster Preferences",
         "prefsIntro": "Drag files, folders, text, images or links to a screen edge. A shelf will wait there until you drag the items back out.",
         "enableLeft": "Enable the left screen edge",
         "enableRight": "Enable the right screen edge",
@@ -245,7 +243,7 @@ enum L10n {
         "languageLabel": "Language",
         "followSystem": "Follow System",
         "aboutText": """
-        EdgeShelf is a small reimplementation of Dropshelf for macOS 26/27.
+        Hamster is a small reimplementation of Dropshelf for macOS 26/27.
 
         Drag files, folders, text, images or links to the left or right edge of the screen. The shelf points at the original file instead of making its own copy; deleting the original removes the item from the shelf.
 
@@ -255,21 +253,20 @@ enum L10n {
         "leftEdge": "Left edge",
         "rightEdge": "Right edge",
         "incomingFile": "Incoming file",
-        "demoWelcomeTitle": "Welcome to EdgeShelf",
+        "demoWelcomeTitle": "Welcome to Hamster",
         "demoWelcomeText": "Drag files, folders, text, images or links to a screen edge.",
         "demoDesignTitle": "Design notes",
-        "demoDesignText": "Warm paper panel, quiet stripes, one clear card per item.",
+        "demoDesignText": "Cream panel, caramel accents, one clear card per item.",
         "demoReadingTitle": "Reading list",
         "demoReadingText": "A shelf should feel like a place, not a window.",
         "demoScreenshotTitle": "Screenshot.png",
         "demoScreenshotText": "A screenshot waiting to be dragged into a document.",
-        "demoFileName": "EdgeShelf demo.txt",
-        "demoFileText": "This file was dropped onto an EdgeShelf shelf.",
+        "demoFileName": "Hamster demo.txt",
+        "demoFileText": "This file was dropped onto an Hamster shelf.",
     ]
 
     private static let chinese: [String: String] = [
-        "shelf": "搁板",
-        "statusTooltip": "EdgeShelf — 把文件拖到屏幕边缘",
+        "statusTooltip": "Hamster — 把文件拖到屏幕边缘",
         "dropHere": "把任何内容拖到这里",
         "dropTypes": "文件 · 文件夹 · 文本 · 链接",
         "copying": "正在复制…",
@@ -285,42 +282,42 @@ enum L10n {
         "copy": "拷贝",
         "copyAll": "拷贝全部",
         "remove": "移除",
-        "removeFromShelf": "从搁板移除",
+        "removeFromShelf": "从暂存面板移除",
         "expandGroup": "展开",
         "collapseGroup": "收起",
         "ungroup": "拆分为单独项目",
         "removeGroup": "移除这一组",
         "groupHelp": "点击展开或收起；拖动可移出全部项目",
         "groupItems": "%d 个项目",
-        "clearShelf": "清空搁板…",
-        "clearAllShelves": "清空所有搁板…",
-        "clearShelfTitle": "清空这个搁板？",
-        "clearShelfConfirm": "这会移除搁板上的所有项目，不会改动原始文件或文件夹。搁板上的文本、链接和粘贴的图片无法恢复。",
-        "removeItemHelp": "从搁板移除",
-        "showShelves": "显示所有搁板",
-        "hideEmptyShelves": "隐藏空搁板",
+        "clearShelf": "清空暂存面板…",
+        "clearAllShelves": "清空所有暂存面板…",
+        "clearShelfTitle": "清空这个暂存面板？",
+        "clearShelfConfirm": "这会移除暂存面板上的所有项目，不会改动原始文件或文件夹。暂存面板上的文本、链接和粘贴的图片无法恢复。",
+        "removeItemHelp": "从暂存面板移除",
+        "showShelves": "显示所有暂存面板",
+        "hideEmptyShelves": "隐藏空暂存面板",
         "preferences": "偏好设置…",
-        "about": "关于 EdgeShelf",
-        "quit": "退出 EdgeShelf",
-        "prefsTitle": "EdgeShelf 偏好设置",
-        "prefsIntro": "把文件、文件夹、文本、图片或链接拖到屏幕边缘。搁板会一直保留，直到你把项目拖出去。",
+        "about": "关于 Hamster",
+        "quit": "退出 Hamster",
+        "prefsTitle": "Hamster 偏好设置",
+        "prefsIntro": "把文件、文件夹、文本、图片或链接拖到屏幕边缘。暂存面板会一直保留，直到你把项目拖出去。",
         "enableLeft": "启用屏幕左边缘",
         "enableRight": "启用屏幕右边缘",
         "removeAfterDragOut": "拖出后移除项目",
-        "closeWhenEmpty": "移除最后一个项目后关闭搁板",
+        "closeWhenEmpty": "移除最后一个项目后关闭暂存面板",
         "mergeDroppedFiles": "把同一次拖入的多个文件合并为一项",
         "showDataFolder": "显示数据文件夹",
-        "closeAllShelves": "关闭所有搁板",
-        "removeAllTitle": "移除所有搁板项目？",
-        "removeAllInfo": "这会移除所有搁板项目，不会改动原始文件或文件夹。文本、链接和粘贴的图片无法恢复。",
+        "closeAllShelves": "关闭所有暂存面板",
+        "removeAllTitle": "移除所有暂存面板项目？",
+        "removeAllInfo": "这会移除所有暂存面板项目，不会改动原始文件或文件夹。文本、链接和粘贴的图片无法恢复。",
         "cancel": "取消",
         "removeAll": "全部移除",
         "languageLabel": "语言",
         "followSystem": "跟随系统",
         "aboutText": """
-        EdgeShelf 是一个为 macOS 26/27 重新实现的 Dropshelf。
+        Hamster 是一个为 macOS 26/27 重新实现的 Dropshelf。
 
-        把文件、文件夹、文本、图片或链接拖到屏幕左/右边缘。搁板直接引用原始文件，不会额外复制；如果原文件被删除，项目也会从搁板上消失。
+        把文件、文件夹、文本、图片或链接拖到屏幕左/右边缘。暂存面板直接引用原始文件，不会额外复制；如果原文件被删除，项目也会从暂存面板上消失。
 
         版本 %@
         """,
@@ -328,21 +325,20 @@ enum L10n {
         "leftEdge": "左边缘",
         "rightEdge": "右边缘",
         "incomingFile": "正在接收文件",
-        "demoWelcomeTitle": "欢迎使用 EdgeShelf",
+        "demoWelcomeTitle": "欢迎使用 Hamster",
         "demoWelcomeText": "把文件、文件夹、文本、图片或链接拖到屏幕边缘。",
         "demoDesignTitle": "设计笔记",
-        "demoDesignText": "暖纸色面板、克制的斜纹、每个项目一张清晰的卡片。",
+        "demoDesignText": "奶油色面板、焦糖色点缀、每个项目一张清晰的卡片。",
         "demoReadingTitle": "阅读清单",
-        "demoReadingText": "搁板应该像一个地方，而不是一个窗口。",
+        "demoReadingText": "暂存面板应该像一个地方，而不是一个窗口。",
         "demoScreenshotTitle": "截图.png",
         "demoScreenshotText": "一张等待被拖进文档的截图。",
-        "demoFileName": "EdgeShelf 演示.txt",
-        "demoFileText": "这个文件被拖进了 EdgeShelf 搁板。",
+        "demoFileName": "Hamster 演示.txt",
+        "demoFileText": "这个文件被拖进了 Hamster 暂存面板。",
     ]
 
     private static let french: [String: String] = [
-        "shelf": "Étagère",
-        "statusTooltip": "EdgeShelf — faites glisser des éléments vers un bord de l’écran",
+        "statusTooltip": "Hamster — faites glisser des éléments vers un bord de l’écran",
         "dropHere": "Déposez n’importe quoi ici",
         "dropTypes": "Fichiers · Dossiers · Texte · Liens",
         "copying": "Copie…",
@@ -373,9 +369,9 @@ enum L10n {
         "showShelves": "Afficher les étagères",
         "hideEmptyShelves": "Masquer les étagères vides",
         "preferences": "Réglages…",
-        "about": "À propos d’EdgeShelf",
-        "quit": "Quitter EdgeShelf",
-        "prefsTitle": "Réglages d’EdgeShelf",
+        "about": "À propos d’Hamster",
+        "quit": "Quitter Hamster",
+        "prefsTitle": "Réglages d’Hamster",
         "prefsIntro": "Faites glisser des fichiers, dossiers, textes, images ou liens vers un bord de l’écran. L’étagère reste là jusqu’à ce que vous en sortiez les éléments.",
         "enableLeft": "Activer le bord gauche de l’écran",
         "enableRight": "Activer le bord droit de l’écran",
@@ -391,7 +387,7 @@ enum L10n {
         "languageLabel": "Langue",
         "followSystem": "Suivre le système",
         "aboutText": """
-        EdgeShelf est une réimplémentation de Dropshelf pour macOS 26/27.
+        Hamster est une réimplémentation de Dropshelf pour macOS 26/27.
 
         Faites glisser des fichiers, dossiers, textes, images ou liens vers le bord gauche ou droit de l’écran. L’étagère fait référence au fichier d’origine sans en faire de copie ; si vous supprimez l’original, l’élément quitte aussi l’étagère.
 
@@ -401,21 +397,20 @@ enum L10n {
         "leftEdge": "Bord gauche",
         "rightEdge": "Bord droit",
         "incomingFile": "Fichier entrant",
-        "demoWelcomeTitle": "Bienvenue dans EdgeShelf",
+        "demoWelcomeTitle": "Bienvenue dans Hamster",
         "demoWelcomeText": "Faites glisser des fichiers, dossiers, textes, images ou liens vers un bord de l’écran.",
         "demoDesignTitle": "Notes de design",
-        "demoDesignText": "Panneau papier chaleureux, rayures discrètes, une carte claire par élément.",
+        "demoDesignText": "Panneau crème, accents caramel, une carte claire par élément.",
         "demoReadingTitle": "Liste de lecture",
         "demoReadingText": "Une étagère doit être un lieu, pas une fenêtre.",
         "demoScreenshotTitle": "Capture.png",
         "demoScreenshotText": "Une capture en attente d’être glissée dans un document.",
-        "demoFileName": "Démo EdgeShelf.txt",
-        "demoFileText": "Ce fichier a été déposé sur une étagère EdgeShelf.",
+        "demoFileName": "Démo Hamster.txt",
+        "demoFileText": "Ce fichier a été déposé sur une étagère Hamster.",
     ]
 
     private static let spanish: [String: String] = [
-        "shelf": "Estante",
-        "statusTooltip": "EdgeShelf — arrastra elementos a un borde de la pantalla",
+        "statusTooltip": "Hamster — arrastra elementos a un borde de la pantalla",
         "dropHere": "Suelta cualquier cosa aquí",
         "dropTypes": "Archivos · Carpetas · Texto · Enlaces",
         "copying": "Copiando…",
@@ -446,9 +441,9 @@ enum L10n {
         "showShelves": "Mostrar estantes",
         "hideEmptyShelves": "Ocultar estantes vacíos",
         "preferences": "Ajustes…",
-        "about": "Acerca de EdgeShelf",
-        "quit": "Salir de EdgeShelf",
-        "prefsTitle": "Ajustes de EdgeShelf",
+        "about": "Acerca de Hamster",
+        "quit": "Salir de Hamster",
+        "prefsTitle": "Ajustes de Hamster",
         "prefsIntro": "Arrastra archivos, carpetas, texto, imágenes o enlaces a un borde de la pantalla. El estante esperará allí hasta que saques los elementos.",
         "enableLeft": "Activar el borde izquierdo de la pantalla",
         "enableRight": "Activar el borde derecho de la pantalla",
@@ -464,7 +459,7 @@ enum L10n {
         "languageLabel": "Idioma",
         "followSystem": "Seguir el sistema",
         "aboutText": """
-        EdgeShelf es una reimplementación de Dropshelf para macOS 26/27.
+        Hamster es una reimplementación de Dropshelf para macOS 26/27.
 
         Arrastra archivos, carpetas, texto, imágenes o enlaces al borde izquierdo o derecho de la pantalla. El estante hace referencia al archivo original sin hacer una copia: si eliminas el original, el elemento también desaparece del estante.
 
@@ -474,21 +469,20 @@ enum L10n {
         "leftEdge": "Borde izquierdo",
         "rightEdge": "Borde derecho",
         "incomingFile": "Archivo entrante",
-        "demoWelcomeTitle": "Bienvenido a EdgeShelf",
+        "demoWelcomeTitle": "Bienvenido a Hamster",
         "demoWelcomeText": "Arrastra archivos, carpetas, texto, imágenes o enlaces a un borde de la pantalla.",
         "demoDesignTitle": "Notas de diseño",
-        "demoDesignText": "Panel de papel cálido, rayas discretas, una tarjeta clara por elemento.",
+        "demoDesignText": "Panel crema, detalles caramelo, una tarjeta clara por elemento.",
         "demoReadingTitle": "Lista de lectura",
         "demoReadingText": "Un estante debe sentirse como un lugar, no como una ventana.",
         "demoScreenshotTitle": "Captura.png",
         "demoScreenshotText": "Una captura esperando para arrastrarse a un documento.",
-        "demoFileName": "Demostración EdgeShelf.txt",
-        "demoFileText": "Este archivo se soltó en un estante de EdgeShelf.",
+        "demoFileName": "Demostración Hamster.txt",
+        "demoFileText": "Este archivo se soltó en un estante de Hamster.",
     ]
 
     private static let russian: [String: String] = [
-        "shelf": "Полка",
-        "statusTooltip": "EdgeShelf — перетащите элементы к краю экрана",
+        "statusTooltip": "Hamster — перетащите элементы к краю экрана",
         "dropHere": "Перетащите что угодно сюда",
         "dropTypes": "Файлы · Папки · Текст · Ссылки",
         "copying": "Копирование…",
@@ -519,9 +513,9 @@ enum L10n {
         "showShelves": "Показать полки",
         "hideEmptyShelves": "Скрыть пустые полки",
         "preferences": "Настройки…",
-        "about": "Об EdgeShelf",
-        "quit": "Завершить EdgeShelf",
-        "prefsTitle": "Настройки EdgeShelf",
+        "about": "Об Hamster",
+        "quit": "Завершить Hamster",
+        "prefsTitle": "Настройки Hamster",
         "prefsIntro": "Перетащите файлы, папки, текст, изображения или ссылки к краю экрана. Полка будет ждать там, пока вы не заберёте элементы.",
         "enableLeft": "Включить левый край экрана",
         "enableRight": "Включить правый край экрана",
@@ -537,7 +531,7 @@ enum L10n {
         "languageLabel": "Язык",
         "followSystem": "Как в системе",
         "aboutText": """
-        EdgeShelf — реализация Dropshelf для macOS 26/27.
+        Hamster — реализация Dropshelf для macOS 26/27.
 
         Перетащите файлы, папки, текст, изображения или ссылки к левому или правому краю экрана. Полка ссылается на исходный файл и не создаёт его копию: если удалить оригинал, элемент исчезнет с полки.
 
@@ -547,21 +541,20 @@ enum L10n {
         "leftEdge": "Левый край",
         "rightEdge": "Правый край",
         "incomingFile": "Получение файла",
-        "demoWelcomeTitle": "Добро пожаловать в EdgeShelf",
+        "demoWelcomeTitle": "Добро пожаловать в Hamster",
         "demoWelcomeText": "Перетащите файлы, папки, текст, изображения или ссылки к краю экрана.",
         "demoDesignTitle": "Заметки по дизайну",
-        "demoDesignText": "Тёплая бумажная панель, тихие полосы, одна понятная карточка на элемент.",
+        "demoDesignText": "Кремовая панель, карамельные акценты, отдельная карточка для каждого элемента.",
         "demoReadingTitle": "Список чтения",
         "demoReadingText": "Полка должна ощущаться как место, а не как окно.",
         "demoScreenshotTitle": "Снимок.png",
         "demoScreenshotText": "Снимок экрана, ожидающий перетаскивания в документ.",
-        "demoFileName": "Демо EdgeShelf.txt",
-        "demoFileText": "Этот файл был перетащен на полку EdgeShelf.",
+        "demoFileName": "Демо Hamster.txt",
+        "demoFileText": "Этот файл был перетащен на полку Hamster.",
     ]
 
     private static let arabic: [String: String] = [
-        "shelf": "رف",
-        "statusTooltip": "EdgeShelf — اسحب العناصر إلى حافة الشاشة",
+        "statusTooltip": "Hamster — اسحب العناصر إلى حافة الشاشة",
         "dropHere": "أفلت أي شيء هنا",
         "dropTypes": "ملفات · مجلدات · نصوص · روابط",
         "copying": "جارٍ النسخ…",
@@ -592,9 +585,9 @@ enum L10n {
         "showShelves": "إظهار الرفوف",
         "hideEmptyShelves": "إخفاء الرفوف الفارغة",
         "preferences": "الإعدادات…",
-        "about": "حول EdgeShelf",
-        "quit": "إنهاء EdgeShelf",
-        "prefsTitle": "إعدادات EdgeShelf",
+        "about": "حول Hamster",
+        "quit": "إنهاء Hamster",
+        "prefsTitle": "إعدادات Hamster",
         "prefsIntro": "اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى حافة الشاشة. سيبقى الرف هناك حتى تسحب العناصر للخارج.",
         "enableLeft": "تفعيل الحافة اليسرى للشاشة",
         "enableRight": "تفعيل الحافة اليمنى للشاشة",
@@ -610,7 +603,7 @@ enum L10n {
         "languageLabel": "اللغة",
         "followSystem": "حسب النظام",
         "aboutText": """
-        EdgeShelf هو إعادة تنفيذ لتطبيق Dropshelf لنظام macOS 26/27.
+        Hamster هو إعادة تنفيذ لتطبيق Dropshelf لنظام macOS 26/27.
 
         اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى الحافة اليسرى أو اليمنى للشاشة. يشير الرف إلى الملف الأصلي دون إنشاء نسخة منه: وإذا حذفت الأصل فسيختفي العنصر من الرف أيضًا.
 
@@ -620,15 +613,15 @@ enum L10n {
         "leftEdge": "الحافة اليسرى",
         "rightEdge": "الحافة اليمنى",
         "incomingFile": "ملف قادم",
-        "demoWelcomeTitle": "مرحبًا بك في EdgeShelf",
+        "demoWelcomeTitle": "مرحبًا بك في Hamster",
         "demoWelcomeText": "اسحب الملفات أو المجلدات أو النصوص أو الصور أو الروابط إلى حافة الشاشة.",
         "demoDesignTitle": "ملاحظات التصميم",
-        "demoDesignText": "لوحة ورقية دافئة، خطوط قطرية هادئة، بطاقة واضحة لكل عنصر.",
+        "demoDesignText": "لوحة كريمية، لمسات كراميل، بطاقة واضحة لكل عنصر.",
         "demoReadingTitle": "قائمة القراءة",
         "demoReadingText": "يجب أن يبدو الرف كمكان، لا كنافذة.",
         "demoScreenshotTitle": "لقطة.png",
         "demoScreenshotText": "لقطة شاشة تنتظر السحب إلى مستند.",
-        "demoFileName": "عرض EdgeShelf.txt",
-        "demoFileText": "تم إفلات هذا الملف على رف EdgeShelf.",
+        "demoFileName": "عرض Hamster.txt",
+        "demoFileText": "تم إفلات هذا الملف على رف Hamster.",
     ]
 }
